@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tramazon Ultimate</title>
+<style>
+body{margin:0;font-family:Arial;background:#e3e6e6}
+header{background:#131921;color:#fff;padding:10px;display:flex;justify-content:space-between}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;padding:12px}
+.card{background:#fff;padding:10px;border-radius:10px}
+.card img{width:100%;height:150px;object-fit:cover}
+.btn{background:#ffd814;border:none;width:100%;padding:8px;margin-top:5px;cursor:pointer}
+.section{background:#fff;margin:10px;padding:10px;border-radius:10px}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6)}
+.modal-box{background:white;margin:5% auto;padding:20px;width:380px;border-radius:10px}
+input,textarea{width:100%;margin-bottom:10px;padding:8px}
+.badge{font-size:12px;color:green}
+</style>
+</head>
+<body>
+
+<header>
+<h1>Tramazon</h1>
+<button onclick="openListForm()">+ List Equipment</button>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<div class="section">
+<h3>📊 Admin Dashboard</h3>
+<div id="stats"></div>
+<div id="requests"></div>
+</div>
+
+<!-- RENT MODAL -->
+<div class="modal" id="rentModal">
+<div class="modal-box">
+<h3 id="itemName"></h3>
+<input id="name" placeholder="Name">
+<input id="phone" placeholder="Phone">
+<input id="email" placeholder="Email">
+<input id="job" placeholder="Job Name">
+<input id="address" placeholder="Job Address">
+<input type="date" id="start">
+<input type="date" id="end">
+<input type="date" id="pickup">
+<p id="total"></p>
+<button class="btn" onclick="submitRental()">Request Rental</button>
+</div>
+</div>
+
+<!-- LIST MODAL -->
+<div class="modal" id="listModal">
+<div class="modal-box">
+<h3>List Equipment</h3>
+<input id="owner" placeholder="Owner">
+<input id="phone2" placeholder="Phone">
+<input id="email2" placeholder="Email">
+<input id="equip" placeholder="Equipment Name">
+<input id="price" placeholder="Price per day">
+<input id="location" placeholder="Location">
+<textarea id="history" placeholder="History"></textarea>
+<input type="date" id="facility">
+<button class="btn" onclick="submitListing()">Submit</button>
+</div>
+</div>
+
+<script>
+let products=JSON.parse(localStorage.getItem('products'))||[];
+let requests=JSON.parse(localStorage.getItem('requests'))||[];
+let selectedIndex=null;
+
+function render(){
+ let g=document.getElementById('grid');
+ g.innerHTML='';
+ products.forEach((p,i)=>{
+  g.innerHTML+=`<div class='card'>
+   <img src='${p.image||"https://via.placeholder.com/300"}'>
+   <h4>${p.name}</h4>
+   <p>$${p.price}/day</p>
+   <p class='badge'>Available</p>
+   <button class='btn' onclick='openRent(${i})'>Rent</button>
+  </div>`;
+ });
+ renderDashboard();
+}
+
+function openRent(i){
+ selectedIndex=i;
+ itemName.innerText=products[i].name;
+ rentModal.style.display='block';
+}
+
+start.onchange=end.onchange=function(){
+ let s=new Date(start.value);
+ let e=new Date(end.value);
+ let days=(e-s)/(1000*60*60*24);
+ if(days>0){
+  total.innerText="Total: $"+(days*products[selectedIndex].price);
+ }
+}
+
+function submitRental(){
+ let req={
+  name:name.value,
+  phone:phone.value,
+  email:email.value,
+  job:job.value,
+  address:address.value,
+  item:products[selectedIndex].name,
+  start:start.value,
+  end:end.value,
+  pickup:pickup.value
+ };
+
+ if(!req.name||!req.phone||!req.email){alert('Fill all');return;}
+
+ requests.push(req);
+ localStorage.setItem('requests',JSON.stringify(requests));
+ renderDashboard();
+ alert('Request sent');
+ rentModal.style.display='none';
+}
+
+function renderDashboard(){
+ stats.innerHTML=`Total Listings: ${products.length} | Requests: ${requests.length}`;
+ let box=document.getElementById('requests');
+ box.innerHTML='';
+ requests.forEach((r,i)=>{
+  box.innerHTML+=`<div>
+   <p><b>${r.item}</b> - ${r.name}</p>
+   <p>${r.job} | ${r.address}</p>
+   <button onclick='approve(${i})'>Approve</button>
+   <button onclick='deny(${i})'>Deny</button>
+  </div>`;
+ });
+}
+
+function approve(i){alert('Approved job: '+requests[i].job)}
+function deny(i){alert('Denied job: '+requests[i].job)}
+
+function openListForm(){listModal.style.display='block'}
+
+function submitListing(){
+ let p={
+  owner:owner.value,
+  phone:phone2.value,
+  email:email2.value,
+  name:equip.value,
+  price:Number(price.value),
+  location:location.value,
+  history:history.value,
+  facility:facility.value
+ };
+
+ if(!p.owner||!p.name||!p.price){alert('Fill required');return;}
+
+ products.push(p);
+ localStorage.setItem('products',JSON.stringify(products));
+ render();
+ listModal.style.display='none';
+}
+
+render();
+</script>
+
+</body>
+</html>
