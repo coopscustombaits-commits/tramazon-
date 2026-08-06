@@ -1,0 +1,216 @@
+rules_version = '2';
+
+// Security rules for Coop's Custom Baits.
+//
+// The rules — not the app UI — are what actually enforce the moderation
+// workflow. Anyone can talk to Firestore directly with the public API key, so
+// everything important is checked here:
+//
+//   * A post can only be created as `pending`.
+//   * Only an admin can move a post to `approved` or `rejected`.
+//   * Only `approved` posts are readable by other users.
+//   * Counters (likeCount, commentCount, postCount) are written by Cloud
+//     Functions with the Admin SDK, which bypasses these rules, so clients
+//     can never inflate them.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Admin is granted by the existence of an `admins/{uid}` document, created
+    // by hand in the Firebase console. See docs/SETUP.md.
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Fields the request is trying to change.
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function isValidString(value, maxLength) {
+      return value is string && value.size() <= maxLength;
+    }
+
+    // ---------------------------------------------------------------------
+    // users/{uid} — public profile
+    // ---------------------------------------------------------------------
+    match /users/{uid} {
+      // Profiles are public so the feed can show who posted what.
+      allow read: if isSignedIn();
+
+      allow create: if isSelf(uid)
+        && request.resource.data.uid == uid
+        && isValidString(request.resource.data.username, 20)
+        && request.resource.data.username.size() >= 3
+        && request.resource.data.usernameLower == request.resource.data.username.lower()
+        && isValidString(request.resource.data.bio, 200)
+        // Counters always start at zero; only the server moves them after that.
+        && request.resource.data.postCount == 0
+        && request.resource.data.followerCount == 0
+        && request.resource.data.followingCount == 0;
+
+      allow update: if isSelf(uid)
+        // Owners may edit presentation fields only. Counters and uid are
+        // server-managed; username changes also touch /usernames, which has
+        // its own rules below.
+        && changedKeys().hasOnly([
+             'bio', 'photoURL', 'favoriteSpecies', 'username', 'usernameLower',
+             'providers', 'updatedAt'
+           ])
+        && (!changedKeys().hasAny(['bio']) || isValidString(request.resource.data.bio, 200))
+        && (!changedKeys().hasAny(['username']) || (
+             isValidString(request.resource.data.username, 20)
+             && request.resource.data.username.size() >= 3
+             && request.resource.data.usernameLower == request.resource.data.username.lower()
+           ));
+
+      // "Delete account" removes the profile as the user, together with their
+      // username reservation, so the name is released immediately. Cascading
+      // cleanup of posts and photos is handled by a Cloud Function.
+      allow delete: if isSelf(uid);
+
+      // users/{uid}/private/profile — email, notification prefs.
+      match /private/{document=**} {
+        allow read, write: if isSelf(uid);
+      }
+
+      // users/{uid}/pushTokens/{token} — one per device.
+      match /pushTokens/{token} {
+        allow read, write: if isSelf(uid);
+      }
+
+      // users/{uid}/notifications/{id} — written by Cloud Functions; the user
+      // may read them and mark them read.
+      match /notifications/{notificationId} {
+        allow read: if isSelf(uid);
+        allow update: if isSelf(uid) && changedKeys().hasOnly(['readAt']);
+        allow create, delete: if false;
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // usernames/{usernameLower} — uniqueness reservations
+    // ---------------------------------------------------------------------
+    match /usernames/{usernameLower} {
+      // Readable so the sign-up screen can check availability before writing.
+      allow read: if true;
+      // You may only claim a name for yourself, and only if it's unclaimed.
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      // Releasing your own reservation (part of a rename transaction).
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
+      // Re-writing a reservation you already own — happens when profile
+      // setup is retried after a partial failure. Never a takeover.
+      allow update: if isSignedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+    }
+
+    // ---------------------------------------------------------------------
+    // admins/{uid}
+    // ---------------------------------------------------------------------
+    match /admins/{uid} {
+      // A user may check whether they themselves are an admin, nothing more.
+      allow get: if isSelf(uid);
+      allow list, write: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // posts/{postId}
+    // ---------------------------------------------------------------------
+    match /posts/{postId} {
+
+      function isApproved() {
+        return resource.data.status == 'approved';
+      }
+
+      function isAuthor() {
+        return isSignedIn() && resource.data.authorId == request.auth.uid;
+      }
+
+      // Signed-in users see approved posts; you can always see your own (so
+      // you can watch it move through review); admins see everything.
+      // Sign-in is required deliberately — the whole app is behind auth, and
+      // without this check anyone with the public API key could scrape the
+      // feed. Relax it only if there's ever a public web version.
+      allow read: if isSignedIn() && (isApproved() || isAuthor() || isAdmin());
+
+      allow create: if isSignedIn()
+        && request.resource.data.authorId == request.auth.uid
+        // Nothing goes live without review.
+        && request.resource.data.status == 'pending'
+        && request.resource.data.publishedAt == null
+        && request.resource.data.reviewedAt == null
+        && request.resource.data.reviewedBy == null
+        && isValidString(request.resource.data.caption, 2000)
+        && request.resource.data.image.url is string
+        && request.resource.data.image.storagePath is string
+        && request.resource.data.likeCount == 0
+        && request.resource.data.commentCount == 0;
+
+      // Authors may fix a caption, but only while the post is still pending —
+      // an approved post can't be edited into something else after the fact.
+      allow update: if isAuthor()
+        && resource.data.status == 'pending'
+        && changedKeys().hasOnly(['caption', 'species', 'updatedAt'])
+        && isValidString(request.resource.data.caption, 2000);
+
+      // Moderation. Only admins, and only into a terminal state.
+      allow update: if isAdmin()
+        && changedKeys().hasOnly([
+             'status', 'publishedAt', 'reviewedAt', 'reviewedBy', 'reviewNote', 'updatedAt'
+           ])
+        && request.resource.data.status in ['approved', 'rejected']
+        && request.resource.data.reviewedBy == request.auth.uid;
+
+      allow delete: if isAuthor() || isAdmin();
+
+      // posts/{postId}/likes/{uid} — document id is the liker.
+      match /likes/{likerId} {
+        allow read: if isSignedIn();
+        // Only on approved posts, only your own like.
+        allow create, delete: if isSelf(likerId)
+          && get(/databases/$(database)/documents/posts/$(postId)).data.status == 'approved';
+        allow update: if false;
+      }
+
+      // posts/{postId}/comments/{commentId}
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+
+        allow create: if isSignedIn()
+          && request.resource.data.authorId == request.auth.uid
+          && isValidString(request.resource.data.text, 1000)
+          && request.resource.data.text.size() > 0
+          && get(/databases/$(database)/documents/posts/$(postId)).data.status == 'approved';
+
+        allow update: if isSignedIn()
+          && resource.data.authorId == request.auth.uid
+          && changedKeys().hasOnly(['text', 'updatedAt'])
+          && isValidString(request.resource.data.text, 1000);
+
+        // Your own comment, or anything on a post you own, or admin.
+        allow delete: if isSignedIn() && (
+             resource.data.authorId == request.auth.uid
+             || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
+             || isAdmin()
+           );
+      }
+    }
+
+    // Anything not matched above is denied. Later phases (follows, messages,
+    // tournaments, badges) add their own blocks here.
+  }
+}

@@ -1,0 +1,154 @@
+import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
+
+import { Card, Divider, ListRow, SectionHeader } from '@/components/ui/card';
+import { Screen } from '@/components/ui/screen';
+import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { useAuth } from '@/lib/auth/auth-context';
+import { authErrorMessage } from '@/lib/auth/errors';
+
+export default function SettingsScreen() {
+  const router = useRouter();
+  const { profile, user, isAdmin, signOut, deleteAccount } = useAuth();
+  const [busy, setBusy] = useState(false);
+
+  function confirmSignOut() {
+    Alert.alert('Log out', 'You can log back in any time.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log out',
+        style: 'destructive',
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await signOut();
+          } catch (error) {
+            Alert.alert('Could not log out', authErrorMessage(error));
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  }
+
+  function confirmDeleteAccount() {
+    Alert.alert(
+      'Delete account',
+      'This permanently deletes your profile, your posts, and your photos. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await deleteAccount();
+            } catch (error) {
+              // Includes the "log out and log back in" case — Firebase won't
+              // delete an account on a stale session.
+              Alert.alert('Could not delete account', authErrorMessage(error));
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+
+  return (
+    <Screen scroll padded={false} contentContainerStyle={styles.content}>
+      <View style={styles.section}>
+        <SectionHeader title="Account" />
+        <Card style={styles.card}>
+          <ListRow
+            label="Edit profile"
+            description={profile?.username ?? undefined}
+            icon="person-outline"
+            onPress={() => router.push('/settings/edit-profile')}
+          />
+          <Divider />
+          <ListRow
+            label="Email"
+            description={user?.email ?? 'Signed in with Google or Apple'}
+            icon="mail-outline"
+          />
+        </Card>
+
+        {isAdmin ? (
+          <>
+            <SectionHeader title="Admin" />
+            <Card style={styles.card}>
+              <ListRow
+                label="Review queue"
+                description="Approve or reject pending posts"
+                icon="shield-checkmark-outline"
+                onPress={() => router.push('/admin/review')}
+              />
+            </Card>
+          </>
+        ) : null}
+
+        <SectionHeader title="Coop's Custom Baits" />
+        <Card style={styles.card}>
+          <ListRow
+            label="About"
+            icon="information-circle-outline"
+            onPress={() => router.push('/settings/about')}
+          />
+          <Divider />
+          <ListRow
+            label="Contact & support"
+            icon="chatbubble-ellipses-outline"
+            onPress={() => router.push('/settings/contact')}
+          />
+        </Card>
+
+        <SectionHeader title="Session" />
+        <Card style={styles.card}>
+          <ListRow
+            label="Log out"
+            icon="log-out-outline"
+            onPress={busy ? undefined : confirmSignOut}
+          />
+          <Divider />
+          <ListRow
+            label="Delete account"
+            description="Permanently removes your account and posts"
+            icon="trash-outline"
+            destructive
+            onPress={busy ? undefined : confirmDeleteAccount}
+          />
+        </Card>
+
+        <Text style={styles.version}>Version {appVersion}</Text>
+      </View>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: {
+    paddingBottom: Spacing.xxl,
+  },
+  section: {
+    paddingHorizontal: Spacing.xl,
+  },
+  card: {
+    padding: 0,
+    overflow: 'hidden',
+    borderRadius: Radius.lg,
+  },
+  version: {
+    ...Typography.caption,
+    color: Colors.textFaint,
+    textAlign: 'center',
+    marginTop: Spacing.xl,
+  },
+});
