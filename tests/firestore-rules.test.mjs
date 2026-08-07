@@ -847,3 +847,236 @@ test('a banned account cannot follow or report', async () => {
   );
   await assertFails(setDoc(doc(banned, 'reports', 'r-banned'), report(BANNED)));
 });
+
+// ---------------------------------------------------------------------------
+// Direct messages
+//
+// Fresh uids rather than the shared fixtures: an earlier test leaves ANGLER
+// blocking OTHER, and "can they DM each other" is exactly the thing that would
+// then depend on suite order.
+// ---------------------------------------------------------------------------
+
+const DM_A = 'dm-a-uid';
+const DM_B = 'dm-b-uid';
+const DM_BLOCKER = 'dm-blocker-uid';
+
+const asA = () => env.authenticatedContext(DM_A).firestore();
+const asB = () => env.authenticatedContext(DM_B).firestore();
+
+/** The canonical thread id: both uids, sorted, joined. */
+const threadId = (a, b) => [a, b].sort().join('_');
+
+const AB = threadId(DM_A, DM_B);
+
+function thread(...uids) {
+  const participantIds = [...uids].sort();
+  return {
+    schemaVersion: 1,
+    participantIds,
+    participants: Object.fromEntries(
+      participantIds.map((uid) => [uid, { uid, username: uid, photoURL: null }]),
+    ),
+    lastMessage: null,
+    lastMessageAt: null,
+    unread: Object.fromEntries(participantIds.map((uid) => [uid, 0])),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+function message(senderId, conversationId, overrides = {}) {
+  return {
+    schemaVersion: 1,
+    conversationId,
+    senderId,
+    text: 'Hey',
+    removedAt: null,
+    removedBy: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+test('set up the messaging fixtures', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'users', DM_A), profile(DM_A, 'DmAlpha'));
+    await setDoc(doc(db, 'users', DM_B), profile(DM_B, 'DmBravo'));
+    await setDoc(doc(db, 'users', DM_BLOCKER), profile(DM_BLOCKER, 'DmBlocker'));
+    // DM_BLOCKER has blocked DM_A. DM_A is never told, and never can be.
+    await setDoc(doc(db, 'users', DM_BLOCKER, 'blocked', DM_A), {
+      uid: DM_A,
+      username: 'DmAlpha',
+      createdAt: new Date(),
+    });
+  });
+});
+
+test('a conversation id has to match its participants', async () => {
+  await assertFails(setDoc(doc(asA(), 'conversations', 'nonsense'), thread(DM_A, DM_B)));
+  // Unsorted would give the two sides different ids for the same thread.
+  await assertFails(
+    setDoc(doc(asA(), 'conversations', `${DM_B}_${DM_A}`), {
+      ...thread(DM_A, DM_B),
+      participantIds: [DM_B, DM_A],
+    }),
+  );
+  await assertSucceeds(setDoc(doc(asA(), 'conversations', AB), thread(DM_A, DM_B)));
+});
+
+test('you cannot open a thread you are not in', async () => {
+  const outsider = threadId(DM_B, DM_BLOCKER);
+  await assertFails(
+    setDoc(doc(asA(), 'conversations', outsider), thread(DM_B, DM_BLOCKER)),
+  );
+});
+
+test('a new thread cannot be born with a preview or an unread badge', async () => {
+  const id = threadId(DM_A, OTHER);
+  await assertFails(
+    setDoc(doc(asA(), 'conversations', id), {
+      ...thread(DM_A, OTHER),
+      lastMessage: { text: 'Forged', senderId: OTHER },
+    }),
+  );
+  await assertFails(
+    setDoc(doc(asA(), 'conversations', id), {
+      ...thread(DM_A, OTHER),
+      unread: { [DM_A]: 0, [OTHER]: 7 },
+    }),
+  );
+});
+
+test('only the two participants can read a thread — plus an admin', async () => {
+  await assertSucceeds(getDoc(doc(asA(), 'conversations', AB)));
+  await assertSucceeds(getDoc(doc(asB(), 'conversations', AB)));
+  await assertFails(getDoc(doc(asOther(), 'conversations', AB)));
+  // Admins can read so a reported message can actually be looked at.
+  await assertSucceeds(getDoc(doc(asOwner(), 'conversations', AB)));
+});
+
+test('a participant can send, an outsider cannot', async () => {
+  await assertSucceeds(
+    setDoc(doc(asA(), 'conversations', AB, 'messages', 'm1'), message(DM_A, AB)),
+  );
+  await assertFails(
+    setDoc(doc(asOther(), 'conversations', AB, 'messages', 'm2'), message(OTHER, AB)),
+  );
+  // Nor can a participant send under someone else's name.
+  await assertFails(
+    setDoc(doc(asA(), 'conversations', AB, 'messages', 'm3'), message(DM_B, AB)),
+  );
+});
+
+test('an empty message is not a message', async () => {
+  await assertFails(
+    setDoc(doc(asA(), 'conversations', AB, 'messages', 'm4'), message(DM_A, AB, { text: '' })),
+  );
+});
+
+test('a message cannot be created pre-tombstoned', async () => {
+  await assertFails(
+    setDoc(
+      doc(asA(), 'conversations', AB, 'messages', 'm5'),
+      message(DM_A, AB, { removedAt: new Date(), removedBy: OWNER }),
+    ),
+  );
+});
+
+test('you cannot DM someone who has blocked you', async () => {
+  // The block list is private — DM_A cannot read it, and the rules check it
+  // anyway, so the send simply fails without telling them why.
+  const id = threadId(DM_A, DM_BLOCKER);
+  await assertFails(getDoc(doc(asA(), 'users', DM_BLOCKER, 'blocked', DM_A)));
+  await assertFails(
+    setDoc(doc(asA(), 'conversations', id), thread(DM_A, DM_BLOCKER)),
+  );
+
+  // And a block placed after the thread already exists stops it mid-flow,
+  // rather than only stopping new conversations.
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'conversations', id), thread(DM_A, DM_BLOCKER));
+  });
+  await assertFails(
+    setDoc(doc(asA(), 'conversations', id, 'messages', 'blocked-msg'), message(DM_A, id)),
+  );
+  // The block is one-directional: DM_BLOCKER can still write to DM_A.
+  await assertSucceeds(
+    setDoc(
+      doc(env.authenticatedContext(DM_BLOCKER).firestore(), 'conversations', id, 'messages', 'ok'),
+      message(DM_BLOCKER, id),
+    ),
+  );
+});
+
+test('a participant may clear their own unread badge and nobody else’s', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), 'conversations', AB), {
+      unread: { [DM_A]: 3, [DM_B]: 2 },
+    });
+  });
+
+  await assertSucceeds(updateDoc(doc(asA(), 'conversations', AB), { [`unread.${DM_A}`]: 0 }));
+  // Zeroing the other side's badge would hide their messages from them.
+  await assertFails(updateDoc(doc(asA(), 'conversations', AB), { [`unread.${DM_B}`]: 0 }));
+  // And you cannot raise your own, or rewrite the preview.
+  await assertFails(updateDoc(doc(asA(), 'conversations', AB), { [`unread.${DM_A}`]: 9 }));
+  await assertFails(
+    updateDoc(doc(asA(), 'conversations', AB), {
+      lastMessage: { text: 'Rewritten', senderId: DM_B },
+    }),
+  );
+});
+
+test('a sent message cannot be edited, only deleted by its sender or tombstoned by an admin', async () => {
+  await assertFails(
+    updateDoc(doc(asA(), 'conversations', AB, 'messages', 'm1'), { text: 'Actually...' }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'conversations', AB, 'messages', 'm1'), {
+      text: '',
+      removedAt: new Date(),
+      removedBy: OWNER,
+      updatedAt: new Date(),
+    }),
+  );
+  // The recipient cannot delete what they were sent, only what they sent.
+  await assertFails(deleteDoc(doc(asB(), 'conversations', AB, 'messages', 'm1')));
+  await assertSucceeds(deleteDoc(doc(asA(), 'conversations', AB, 'messages', 'm1')));
+});
+
+test('leaving a thread is not a thing — only an admin can delete one', async () => {
+  await assertFails(deleteDoc(doc(asA(), 'conversations', AB)));
+  await assertSucceeds(deleteDoc(doc(asOwner(), 'conversations', AB)));
+});
+
+test('a banned account cannot open a thread or send', async () => {
+  const banned = env.authenticatedContext(BANNED).firestore();
+  const id = threadId(BANNED, DM_B);
+  await assertFails(setDoc(doc(banned, 'conversations', id), thread(BANNED, DM_B)));
+
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'conversations', id), thread(BANNED, DM_B));
+  });
+  await assertFails(
+    setDoc(doc(banned, 'conversations', id, 'messages', 'nope'), message(BANNED, id)),
+  );
+});
+
+test('the inbox query is allowed, and only for your own threads', async () => {
+  await assertSucceeds(getDocs(query(
+    collection(asA(), 'conversations'),
+    where('participantIds', 'array-contains', DM_A),
+    orderBy('lastMessageAt', 'desc'),
+    limit(50),
+  )));
+  // Reading somebody else's inbox is the whole point of the rule.
+  await assertFails(getDocs(query(
+    collection(asA(), 'conversations'),
+    where('participantIds', 'array-contains', DM_B),
+    orderBy('lastMessageAt', 'desc'),
+    limit(50),
+  )));
+  await assertFails(getDocs(query(collection(asA(), 'conversations'), limit(50))));
+});

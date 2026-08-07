@@ -244,6 +244,7 @@ export const onFollowCreated = onDocumentCreated('follows/{edgeId}', async (even
     body: `${follower.get('username') ?? 'An angler'} started following you.`,
     href: `/user/${edge.followerId}`,
     data: { followerId: edge.followerId },
+    preference: 'newFollower',
   });
 });
 
@@ -262,6 +263,67 @@ export const onFollowDeleted = onDocumentDeleted('follows/{edgeId}', async (even
       .catch(() => undefined),
   ]);
 });
+
+// ---------------------------------------------------------------------------
+// Direct messages
+// ---------------------------------------------------------------------------
+
+/**
+ * A message was sent: update the thread preview, raise the recipient's unread
+ * count, and push it to them.
+ *
+ * All three live here rather than in the client because the security rules
+ * deny a participant those fields outright — otherwise a modified app could
+ * rewrite a thread preview or forge somebody else's unread badge.
+ */
+export const onMessageCreated = onDocumentCreated(
+  'conversations/{conversationId}/messages/{messageId}',
+  async (event) => {
+    const message = event.data?.data();
+    if (!message?.senderId) return;
+
+    const { conversationId } = event.params;
+    const threadRef = db().doc(`conversations/${conversationId}`);
+    const thread = await threadRef.get();
+    if (!thread.exists) return;
+
+    const participantIds = (thread.get('participantIds') as string[] | undefined) ?? [];
+    const recipients = participantIds.filter((uid) => uid !== message.senderId);
+    const text = typeof message.text === 'string' ? message.text : '';
+
+    // One update: the preview, the sort key, and every recipient's counter.
+    const unreadBumps: Record<string, FieldValue> = {};
+    for (const uid of recipients) {
+      unreadBumps[`unread.${uid}`] = FieldValue.increment(1);
+    }
+
+    await threadRef
+      .update({
+        lastMessage: { text: text.slice(0, 200), senderId: message.senderId },
+        lastMessageAt: event.data?.createTime ?? new Date(),
+        updatedAt: new Date(),
+        ...unreadBumps,
+      })
+      .catch((error) => logger.warn('Could not update conversation', { error }));
+
+    const senderName =
+      (thread.get(`participants.${message.senderId}.username`) as string | undefined) ??
+      'An angler';
+
+    await Promise.all(
+      recipients.map((uid) =>
+        notifyUser(uid, {
+          type: 'new_message',
+          title: senderName,
+          body: text.slice(0, 120),
+          href: `/messages/${conversationId}`,
+          data: { conversationId, senderId: message.senderId },
+          preference: 'messages',
+        }),
+      ),
+    );
+  },
+);
 
 // ---------------------------------------------------------------------------
 // Reports
@@ -390,28 +452,59 @@ export const onProfileUpdated = onDocumentUpdated('users/{uid}', async (event) =
   if (before.username === after.username && before.photoURL === after.photoURL) return;
 
   const { uid } = event.params;
-  const posts = await db().collection('posts').where('authorId', '==', uid).get();
-  if (posts.empty) return;
+  const snapshot = {
+    username: after.username,
+    photoURL: after.photoURL ?? null,
+  };
 
-  // Firestore caps a batch at 500 writes.
-  const chunks: FirebaseFirestore.QueryDocumentSnapshot[][] = [];
-  for (let index = 0; index < posts.docs.length; index += 400) {
-    chunks.push(posts.docs.slice(index, index + 400));
-  }
+  const [posts, threads] = await Promise.all([
+    db().collection('posts').where('authorId', '==', uid).get(),
+    // The inbox renders from the denormalized participant snapshot, so a name
+    // change has to reach threads too or old threads show the old name.
+    db().collection('conversations').where('participantIds', 'array-contains', uid).get(),
+  ]);
 
-  for (const chunk of chunks) {
-    const batch = db().batch();
-    for (const post of chunk) {
+  await Promise.all([
+    updateEach(posts.docs, (batch, post) =>
       batch.update(post.ref, {
-        'author.username': after.username,
-        'author.photoURL': after.photoURL ?? null,
-      });
+        'author.username': snapshot.username,
+        'author.photoURL': snapshot.photoURL,
+      }),
+    ),
+    updateEach(threads.docs, (batch, thread) =>
+      batch.update(thread.ref, {
+        [`participants.${uid}.username`]: snapshot.username,
+        [`participants.${uid}.photoURL`]: snapshot.photoURL,
+      }),
+    ),
+  ]);
+
+  logger.info('Refreshed author snapshots', {
+    uid,
+    posts: posts.size,
+    conversations: threads.size,
+  });
+});
+
+/**
+ * Apply an update to every document, in batches. Firestore caps a batch at
+ * 500 writes, so anything that touches "all of a user's X" has to chunk.
+ */
+async function updateEach(
+  docs: FirebaseFirestore.QueryDocumentSnapshot[],
+  apply: (
+    batch: FirebaseFirestore.WriteBatch,
+    doc: FirebaseFirestore.QueryDocumentSnapshot,
+  ) => void,
+): Promise<void> {
+  for (let index = 0; index < docs.length; index += 400) {
+    const batch = db().batch();
+    for (const document of docs.slice(index, index + 400)) {
+      apply(batch, document);
     }
     await batch.commit();
   }
-
-  logger.info('Refreshed author snapshots', { uid, posts: posts.size });
-});
+}
 
 /**
  * Account deletion. The app deletes `users/{uid}` and the username

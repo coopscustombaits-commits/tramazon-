@@ -92,6 +92,8 @@ export type UserPrivate = Timestamps & {
     postApproved: boolean;
     postLiked: boolean;
     postCommented: boolean;
+    newFollower: boolean;
+    messages: boolean;
     announcements: boolean;
   };
 };
@@ -359,6 +361,61 @@ export type Follow = {
   followerId: string;
   followingId: string;
   createdAt: Timestamp | null;
+};
+
+// ---------------------------------------------------------------------------
+// Direct messages
+// ---------------------------------------------------------------------------
+
+/**
+ * `conversations/{conversationId}` — one thread.
+ *
+ * The id is the two participant uids sorted and joined with `_`, so opening a
+ * DM with the same person twice lands in the same thread instead of quietly
+ * forking it. `lib/db/messages.ts` is the only place that builds it.
+ *
+ * `participantIds` is an array rather than two named fields so a group thread
+ * is a data change and not a schema change. Today the rules require exactly
+ * two — lifting that is a one-line edit when group DMs are wanted.
+ */
+export type Conversation = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  participantIds: string[];
+  /**
+   * Username and photo per participant, keyed by uid. Denormalized so the
+   * inbox renders from one query instead of a profile read per row. Refreshed
+   * by the same Cloud Function that refreshes post author snapshots.
+   */
+  participants: Record<string, AuthorSnapshot>;
+  /** Preview for the inbox row. Server-written when a message is sent. */
+  lastMessage: {
+    text: string;
+    senderId: string;
+  } | null;
+  /** Separate from `updatedAt` so the inbox sorts on message activity alone. */
+  lastMessageAt: Timestamp | null;
+  /**
+   * Unread count per uid. Server-incremented on send; a participant may zero
+   * out their own entry (and only their own) when they open the thread.
+   */
+  unread: Record<string, number>;
+};
+
+/** `conversations/{conversationId}/messages/{messageId}` */
+export type DirectMessage = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  /**
+   * Set when an admin removes a message. The document stays so the thread
+   * doesn't renumber and so a report stays auditable; the text is replaced
+   * with a tombstone at render time.
+   */
+  removedAt: Timestamp | null;
+  removedBy: string | null;
 };
 
 // ---------------------------------------------------------------------------

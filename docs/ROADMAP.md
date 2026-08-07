@@ -37,7 +37,7 @@ because a missing one of these is a rejection, not a feature gap.
 | Search users | Prefix query on `usernameLower` | **Built** |
 | Search posts | `posts.keywords` + `array-contains` | **Built** — see the note below |
 | Species communities | `posts.speciesSlug` ★ + index | **Built** |
-| Private messaging | New `conversations` collection | Ready |
+| Private messaging | New `conversations` collection | **Built** |
 | Product reviews | New `productReviews` collection | Ready |
 | Bait reviews | New `baitReviews` collection | Ready |
 | Photo and video posts | — | **Done in Phase 1** |
@@ -50,10 +50,29 @@ feature lands. A "following" feed is
 `posts where authorId in [...] and status == 'approved'` — the same collection
 and the same index the public feed already uses.
 
-**Private messaging.** Add `conversations/{id}` with a `participantIds` array
-and a `messages` subcollection. Nothing existing changes. Profiles already
-carry everything a chat list needs to render, and `NotificationType` already
-includes `new_message`, so the push plumbing routes it without changes.
+**Private messaging.** `conversations/{id}` holds a `participantIds` array and
+a `messages` subcollection. Three decisions worth knowing:
+
+*The thread id is derived, not random* — both uids sorted and joined with `_`.
+If it were random, two people opening a DM with each other at the same moment
+would each create a thread and neither would see the other's messages. The
+rules enforce both the sort and the match, so a thread whose id disagrees with
+its participants can't be created at all.
+
+*The preview, the sort key, and unread counts are server-written.* A
+participant may do exactly one thing to the thread document: set their own
+unread count to zero. Everything else is the `onMessageCreated` function's, for
+the same reason like counts are — otherwise a modified client could forge
+somebody else's unread badge or rewrite what a thread appears to say.
+
+*You cannot message someone who blocked you*, and the check runs on every
+message rather than only when the thread is opened. This works because
+`exists()` inside a security rule is not subject to read rules: the block list
+stays completely private to its owner, and the sender just sees the send fail.
+That property is what makes blocking meaningful once DMs exist.
+
+Group threads are a data change, not a schema change — the participant array
+already generalizes; the rules pin it to two.
 
 **Species communities.** Posts carry free-text `species` plus ★`speciesSlug`,
 a normalized form written at post time ("Largemouth Bass", "largemouth bass",

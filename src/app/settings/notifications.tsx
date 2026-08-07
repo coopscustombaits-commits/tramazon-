@@ -35,6 +35,16 @@ const SETTINGS: {
     description: 'When someone comments on your catch',
   },
   {
+    key: 'newFollower',
+    label: 'New followers',
+    description: 'When another angler follows you',
+  },
+  {
+    key: 'messages',
+    label: 'Messages',
+    description: 'When someone sends you a direct message',
+  },
+  {
     key: 'announcements',
     label: 'News from Coop',
     description: 'New baits, restocks, and shop news',

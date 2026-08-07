@@ -75,9 +75,12 @@ server-written. A "following" feed reads the follow edges, then queries
 `posts where authorId in [...] and status == 'approved'` — the same collection
 and the same index as today.
 
-**Private messaging.** Add `conversations/{conversationId}` with a
-`participantIds` array, plus a `messages` subcollection. Nothing existing
-changes; profiles already have everything a chat list needs to render.
+**Private messaging.** *(Built.)* `conversations/{conversationId}` with a
+`participantIds` array, plus a `messages` subcollection. The id is the two
+uids sorted and joined with `_`, so both sides compute the same one — the
+rules enforce that, since a thread whose id doesn't match its participants
+would be invisible to every later lookup. Two participants today; the array
+shape means group threads are a data change, not a schema change.
 
 **Tournaments.** `posts` already carries a nullable `tournamentId` and
 `species`. Add `tournaments/{tournamentId}` and entries become a query on

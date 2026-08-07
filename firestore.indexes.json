@@ -84,6 +84,21 @@
       ]
     },
     {
+      "comment": "Message inbox: your threads, most recent activity first.",
+      "collectionGroup": "conversations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "participantIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "lastMessageAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "comment": "Post search: approved posts containing a keyword, newest first.",
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",

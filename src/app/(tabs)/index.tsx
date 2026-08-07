@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState, Screen, ScreenLoader } from '@/components/ui/screen';
 import { Spacing } from '@/constants/theme';
 import { makeStyles, useThemeColors } from '@/constants/theme-context';
+import { useUnreadMessages } from '@/hooks/use-unread-messages';
 import { useUnreadNotifications } from '@/hooks/use-unread-notifications';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useBlocked } from '@/lib/db/blocked-context';
@@ -22,6 +23,7 @@ export default function FeedScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const unread = useUnreadNotifications(user?.uid ?? null);
+  const unreadMessages = useUnreadMessages(user?.uid ?? null);
   const { filterBlocked } = useBlocked();
 
   const [posts, setPosts] = useState<Post[]>([]);
@@ -111,6 +113,13 @@ export default function FeedScreen() {
             icon: 'fish-outline',
             label: 'Species hubs',
             onPress: () => router.push('/species'),
+          },
+          {
+            icon: unreadMessages > 0 ? 'chatbubble' : 'chatbubble-outline',
+            label:
+              unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages',
+            badge: unreadMessages,
+            onPress: () => router.push('/messages'),
           },
           {
             icon: unread > 0 ? 'notifications' : 'notifications-outline',

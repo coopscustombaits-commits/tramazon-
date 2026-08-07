@@ -35,6 +35,12 @@ export const paths = {
   announcements: 'announcements',
   announcement: (id: string) => `announcements/${id}`,
 
+  conversations: 'conversations',
+  conversation: (id: string) => `conversations/${id}`,
+  conversationMessages: (id: string) => `conversations/${id}/messages`,
+  conversationMessage: (id: string, messageId: string) =>
+    `conversations/${id}/messages/${messageId}`,
+
   posts: 'posts',
   post: (postId: string) => `posts/${postId}`,
   postLikes: (postId: string) => `posts/${postId}/likes`,

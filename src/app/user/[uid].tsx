@@ -13,8 +13,10 @@ import { EmptyState, ScreenLoader } from '@/components/ui/screen';
 import { Spacing, Typography } from '@/constants/theme';
 import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
+import { authErrorMessage } from '@/lib/auth/errors';
 import { useBlocked } from '@/lib/db/blocked-context';
 import { followUser, subscribeToIsFollowing, unfollowUser } from '@/lib/db/follows';
+import { openConversation } from '@/lib/db/messages';
 import { fetchApprovedPostsByAuthor } from '@/lib/db/posts';
 import { getUserProfile } from '@/lib/db/users';
 import type { Post, UserProfile } from '@/types/models';
@@ -31,7 +33,7 @@ export default function UserProfileScreen() {
   const styles = useStyles();
   const { uid } = useLocalSearchParams<{ uid: string }>();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile: myProfile } = useAuth();
   const { isBlocked, block, unblock } = useBlocked();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -40,6 +42,7 @@ export default function UserProfileScreen() {
   const [following, setFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [reporting, setReporting] = useState(false);
+  const [messaging, setMessaging] = useState(false);
 
   // Live, so the button matches reality if they follow from another screen.
   useEffect(() => {
@@ -90,6 +93,27 @@ export default function UserProfileScreen() {
       console.warn('[user] follow toggle failed', error);
     } finally {
       setFollowBusy(false);
+    }
+  }
+
+  /**
+   * Open (or create) the DM thread with this angler.
+   *
+   * `replace: false` — you should be able to back out of the thread onto the
+   * profile you came from, the same as tapping through from the inbox.
+   */
+  async function openThread() {
+    if (!myProfile || !profile || messaging) return;
+    setMessaging(true);
+    try {
+      const id = await openConversation(myProfile, profile);
+      router.push(`/messages/${id}`);
+    } catch (error) {
+      // The most likely cause is that they've blocked you, which the rules
+      // enforce and which we deliberately don't spell out.
+      Alert.alert('Could not start a conversation', authErrorMessage(error));
+    } finally {
+      setMessaging(false);
     }
   }
 
@@ -193,13 +217,24 @@ export default function UserProfileScreen() {
             <Stat label="Followers" value={profile.followerCount} />
           </View>
 
-          <Button
-            label={following ? 'Following' : 'Follow'}
-            icon={following ? 'checkmark' : 'person-add-outline'}
-            variant={following ? 'outline' : 'primary'}
-            onPress={toggleFollow}
-            disabled={followBusy}
-          />
+          <View style={styles.actions}>
+            <Button
+              label={following ? 'Following' : 'Follow'}
+              icon={following ? 'checkmark' : 'person-add-outline'}
+              variant={following ? 'outline' : 'primary'}
+              onPress={toggleFollow}
+              disabled={followBusy}
+              style={styles.action}
+            />
+            <Button
+              label="Message"
+              icon="chatbubble-outline"
+              variant="outline"
+              onPress={openThread}
+              disabled={messaging || isBlocked(profile.uid)}
+              style={styles.action}
+            />
+          </View>
         </Card>
 
         {isBlocked(profile.uid) ? (
@@ -253,6 +288,14 @@ const useStyles = makeStyles((Colors) => ({
   profileCard: {
     alignItems: 'center',
     gap: Spacing.md,
+  },
+  actions: {
+    flexDirection: 'row',
+    alignSelf: 'stretch',
+    gap: Spacing.sm,
+  },
+  action: {
+    flex: 1,
   },
   username: {
     ...Typography.title,

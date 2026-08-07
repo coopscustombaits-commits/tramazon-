@@ -34,6 +34,8 @@ export type NotificationPreference =
   | 'postApproved'
   | 'postLiked'
   | 'postCommented'
+  | 'newFollower'
+  | 'messages'
   | 'announcements';
 
 /**

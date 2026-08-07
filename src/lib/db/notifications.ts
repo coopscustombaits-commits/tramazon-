@@ -89,6 +89,8 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   postApproved: true,
   postLiked: true,
   postCommented: true,
+  newFollower: true,
+  messages: true,
   announcements: true,
 };
 

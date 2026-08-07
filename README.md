@@ -40,6 +40,9 @@ src/
     wishlist.tsx          saved products
     orders.tsx            order history and status
     user/[uid].tsx        another angler's profile
+    messages/             direct message inbox and threads
+    search.tsx            search anglers and catches
+    species/              per-species hubs
     notifications.tsx     in-app activity history
     product/[handle].tsx  a product
     cart.tsx              cart and checkout
@@ -70,17 +73,18 @@ docs/ROADMAP.md           how Phases 2-4 fit the existing schema, and what
 
 ## Build status
 
-**Phase 1 is complete. Phases 2, 3, and 4 are not built.**
+**Phase 1 is complete. Phase 2 is most of the way there. Phases 3 and 4 are
+mostly not built.**
 
-The later phases have been *designed for* — [`docs/ROADMAP.md`](docs/ROADMAP.md)
-audits every item against the database schema, and a few fields were added early
-so nothing needs restructuring. That is not the same as being built. Nothing in
-Phase 2 or 3 exists as a screen, and the Phase 4 dashboard doesn't exist at all.
+Where a later phase isn't built it has at least been *designed for* —
+[`docs/ROADMAP.md`](docs/ROADMAP.md) audits every remaining item against the
+database schema, and a few fields were added early so nothing needs
+restructuring. That is not the same as being built.
 
 | Phase | Built |
 | --- | --- |
 | **1 — Core app** | Everything |
-| **2 — Community** | 2 of 8 items |
+| **2 — Community** | 6 of 9 items |
 | **3 — Engagement** | 1 of 9 items |
 | **4 — Admin dashboard & moderation** | Enforcement only, no dashboard |
 
@@ -112,9 +116,9 @@ Phase 2 or 3 exists as a screen, and the Phase 4 dashboard doesn't exist at all.
 | Dark mode toggle | Done |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done, covers all four phases |
-| Tests | 42 unit + 43 security rules, all in CI |
+| Tests | 42 unit + 62 security rules, all in CI |
 
-### Phase 2 — Community · 5 of 9
+### Phase 2 — Community · 6 of 9
 
 | Feature | State |
 | --- | --- |
@@ -123,7 +127,7 @@ Phase 2 or 3 exists as a screen, and the Phase 4 dashboard doesn't exist at all.
 | Search for users | **Done** — username prefix search |
 | Search for posts | **Done** — keyword search, whole words only ([why](docs/ROADMAP.md#phase-2--community)) |
 | Species communities | **Done** — 12 curated hubs |
-| Private messaging | Not built |
+| Private messaging | **Done** — one-to-one, blocking enforced in the rules |
 | Product reviews | Not built |
 | Bait reviews | Not built |
 | YouTube integration | Not built |
@@ -163,6 +167,7 @@ sit on top of, which is the part that has to be right first.
 | **User reporting** | **Done** — report posts, comments, and anglers |
 | **User blocking** | **Done** — block list, feed and comments filtered |
 | Reports queue | **Done** — admin-only, with push alerts |
+| Moderate reported messages | **Enforced** — admin can read and tombstone; no UI |
 | Flagged-post review | Not built |
 | Appeals | Not built |
 | AI moderation | Not built |

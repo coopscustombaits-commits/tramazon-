@@ -44,6 +44,27 @@ service cloud.firestore {
       return value is string && value.size() <= maxLength;
     }
 
+    // The other uid in a two-person list. Only meaningful where the list is
+    // already known to have exactly two entries, one of which is the caller.
+    function otherIn(uids) {
+      return uids.removeAll([request.auth.uid])[0];
+    }
+
+    /**
+     * Has `uid` blocked the caller?
+     *
+     * A block list is private — the blocked person is never told, and the read
+     * rule denies them the collection outright. `exists()` inside a rule is
+     * not subject to read rules, so this can enforce the block without ever
+     * exposing it. That's what makes "you can't DM someone who blocked you"
+     * possible without leaking that a block happened: the send just fails.
+     */
+    function hasBlockedMe(uid) {
+      return exists(
+        /databases/$(database)/documents/users/$(uid)/blocked/$(request.auth.uid)
+      );
+    }
+
     /**
      * A suspended or banned account can still read and can still sign in, but
      * cannot create anything. Only an admin can change `accountStatus` — the
@@ -207,6 +228,102 @@ service cloud.firestore {
 
       // Counters are derived from these edges; editing one would desync them.
       allow update: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // conversations/{conversationId} — private messages
+    //
+    // The document id is the two uids sorted and joined with '_'. That's
+    // enforced here, not just in the app: without it one write could create a
+    // thread whose id doesn't match its participants, and every later lookup
+    // by id would miss it.
+    // ---------------------------------------------------------------------
+    match /conversations/{conversationId} {
+
+      function participants() {
+        return resource.data.participantIds;
+      }
+
+      function isParticipant() {
+        return isSignedIn() && request.auth.uid in participants();
+      }
+
+      // Admins can read threads so a reported message can actually be looked
+      // at. Reading is all they get — an admin cannot send as somebody else.
+      allow read: if isParticipant() || isAdmin();
+
+      allow create: if accountActive()
+        && request.resource.data.participantIds is list
+        // Exactly two for now. Group threads are a data change, not a schema
+        // change: relax this and the id rule below.
+        && request.resource.data.participantIds.size() == 2
+        && request.auth.uid in request.resource.data.participantIds
+        // Sorted, so the id is the same from both sides. Without this the two
+        // participants could each create a thread under a different id and
+        // neither would see the other's messages.
+        && request.resource.data.participantIds[0] < request.resource.data.participantIds[1]
+        && conversationId == request.resource.data.participantIds.join('_')
+        // A fresh thread starts empty. Forging a preview or an unread badge
+        // into existence is exactly the kind of thing a modified client would
+        // try.
+        && request.resource.data.lastMessage == null
+        && request.resource.data.lastMessageAt == null
+        && request.resource.data.unread.values().hasOnly([0])
+        // You cannot open a thread with somebody who has blocked you. `get`
+        // and `exists` are not subject to read rules, so this can check a
+        // list the sender is never allowed to see.
+        && !hasBlockedMe(otherIn(request.resource.data.participantIds));
+
+      // The only edit a participant may make is zeroing their own unread
+      // count. Everything else on this document — the preview, the timestamp,
+      // the other side's count — is written by a Cloud Function.
+      allow update: if isParticipant()
+        && changedKeys().hasOnly(['unread'])
+        && request.resource.data.unread[request.auth.uid] == 0
+        && request.resource.data.unread
+             .diff(resource.data.unread)
+             .affectedKeys()
+             .hasOnly([request.auth.uid]);
+
+      // Leaving a thread would delete it for the other person too. Hiding a
+      // conversation is what blocking is for.
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+
+        function thread() {
+          return get(/databases/$(database)/documents/conversations/$(conversationId)).data;
+        }
+
+        function inThread() {
+          return isSignedIn() && request.auth.uid in thread().participantIds;
+        }
+
+        allow read: if inThread() || isAdmin();
+
+        allow create: if accountActive()
+          && inThread()
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.conversationId == conversationId
+          && isValidString(request.resource.data.text, 2000)
+          && request.resource.data.text.size() > 0
+          && request.resource.data.removedAt == null
+          && request.resource.data.removedBy == null
+          // Re-checked on every message, not just when the thread opened —
+          // otherwise a block would only stop new conversations, not the one
+          // already in progress.
+          && !hasBlockedMe(otherIn(thread().participantIds));
+
+        // A sent message can't be edited into something else after the fact;
+        // the recipient has already read it. Admins tombstone instead, which
+        // keeps the document so a report stays auditable.
+        allow update: if isAdmin()
+          && changedKeys().hasOnly(['text', 'removedAt', 'removedBy', 'updatedAt'])
+          && request.resource.data.removedBy == request.auth.uid;
+
+        allow delete: if isAdmin()
+          || (isSignedIn() && resource.data.senderId == request.auth.uid);
+      }
     }
 
     // ---------------------------------------------------------------------
