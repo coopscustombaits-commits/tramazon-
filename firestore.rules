@@ -60,6 +60,7 @@ service cloud.firestore {
         // Counters always start at zero; only the server moves them after that.
         && request.resource.data.postCount == 0
         && request.resource.data.fishLoggedCount == 0
+        && request.resource.data.points == 0
         && request.resource.data.followerCount == 0
         && request.resource.data.followingCount == 0;
 
@@ -212,7 +213,7 @@ service cloud.firestore {
       // an approved post can't be edited into something else after the fact.
       allow update: if isAuthor()
         && resource.data.status == 'pending'
-        && changedKeys().hasOnly(['caption', 'species', 'updatedAt'])
+        && changedKeys().hasOnly(['caption', 'species', 'speciesSlug', 'updatedAt'])
         && isValidString(request.resource.data.caption, 2000);
 
       // Moderation. Only admins, and only into a terminal state.

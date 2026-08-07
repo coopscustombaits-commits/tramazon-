@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { forwardRef, useState } from 'react';
 import {
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
   type TextInputProps,
 } from 'react-native';
 
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 
 type TextFieldProps = TextInputProps & {
   label: string;
@@ -25,6 +25,8 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
   { label, error, hint, secure = false, style, ...inputProps },
   ref,
 ) {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
 
@@ -76,7 +78,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
   );
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   container: {
     gap: Spacing.xs,
   },
@@ -115,4 +117,4 @@ const styles = StyleSheet.create({
   hint: {
     ...Typography.caption,
   },
-});
+}));

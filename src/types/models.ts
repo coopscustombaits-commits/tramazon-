@@ -46,8 +46,11 @@ export type UserProfile = Timestamps & {
   /** Free text for now, e.g. "Largemouth Bass". */
   favoriteSpecies: string | null;
 
-  // Denormalized counters, maintained server-side.
+  // Denormalized counters, maintained server-side. Clients are denied these
+  // fields outright, so none of them can be inflated from a modified app.
   postCount: number;
+  /** Phase 3 points/rewards. Server-written, zero until that lands. */
+  points: number;
   /**
    * Catches logged. Distinct from `postCount` — a later phase adds a catch log
    * where an angler records a fish without posting it publicly. Server-written
@@ -147,12 +150,18 @@ export type Post = Timestamps & {
   likeCount: number;
   commentCount: number;
 
-  /**
-   * Reserved for later phases so posts don't need restructuring:
-   * tournament entries and species tagging.
-   */
+  /** Free text as the angler typed it, e.g. "Largemouth Bass". */
   species: string | null;
+  /**
+   * Normalized form of `species`, e.g. "largemouth-bass". Written now, unused
+   * until Phase 2's species hubs — a slug derived at write time costs nothing
+   * today and saves backfilling every post later.
+   */
+  speciesSlug: string | null;
+
+  /** Reserved for Phase 3 so posts don't need restructuring. */
   tournamentId: string | null;
+  challengeId: string | null;
 };
 
 /** `posts/{postId}/likes/{uid}` — document id is the liker's uid. */

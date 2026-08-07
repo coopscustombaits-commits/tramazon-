@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 
 export type HeaderAction = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -19,6 +20,8 @@ type AppHeaderProps = {
 
 /** Lightweight in-screen header for the tab screens, which hide the nav bar. */
 export function AppHeader({ title, actions = [] }: AppHeaderProps) {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   return (
     <View style={styles.header}>
       <Text style={styles.title}>{title}</Text>
@@ -46,7 +49,7 @@ export function AppHeader({ title, actions = [] }: AppHeaderProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -83,4 +86,4 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
-});
+}));

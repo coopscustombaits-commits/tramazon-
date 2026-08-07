@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Screen, ScreenLoader } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 import { paths } from '@/lib/db/paths';
@@ -24,6 +25,7 @@ const BODY_MAX = 500;
  * sends and can't half-finish.
  */
 export default function AnnounceScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const { isAdmin, status, user } = useAuth();
 
@@ -139,7 +141,7 @@ export default function AnnounceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   form: { gap: Spacing.lg, paddingTop: Spacing.lg },
   heading: { ...Typography.title },
   body: { ...Typography.body, color: Colors.textMuted },
@@ -153,4 +155,4 @@ const styles = StyleSheet.create({
   previewLabel: { ...Typography.label },
   previewTitle: { ...Typography.bodyStrong },
   previewBody: { ...Typography.caption },
-});
+}));

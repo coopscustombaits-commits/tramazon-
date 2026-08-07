@@ -62,6 +62,9 @@ shape.)
 **Everything carries `schemaVersion`.** When a field changes meaning in a later
 phase, a migration can find the old documents instead of guessing.
 
+See [ROADMAP.md](ROADMAP.md) for a per-feature audit of Phase 2 and 3 against
+this schema.
+
 ## How the later phases fit
 
 None of these need the existing collections restructured.

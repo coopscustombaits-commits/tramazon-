@@ -2,12 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { removeFromWishlist, subscribeToWishlist } from '@/lib/db/wishlist';
 import { formatMoney } from '@/lib/shopify/client';
@@ -15,6 +16,8 @@ import type { WishlistItem } from '@/types/models';
 
 /** Saved products. Stored per user in Firestore, so it follows the account. */
 export default function WishlistScreen() {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const { user } = useAuth();
 
@@ -101,7 +104,7 @@ export default function WishlistScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   list: { padding: Spacing.lg, flexGrow: 1 },
   separator: { height: Spacing.md },
@@ -126,4 +129,4 @@ const styles = StyleSheet.create({
   rowBody: { flex: 1, gap: 2 },
   rowTitle: { ...Typography.bodyStrong },
   rowPrice: { ...Typography.caption, color: Colors.primary, fontWeight: '700' },
-});
+}));

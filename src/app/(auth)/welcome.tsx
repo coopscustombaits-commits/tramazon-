@@ -1,17 +1,20 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SocialSignIn } from '@/components/social-sign-in';
 import { Button } from '@/components/ui/button';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage, isCancellation } from '@/lib/auth/errors';
 
 /** Landing screen: brand first, then the two ways in. */
 export default function WelcomeScreen() {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const { signInWithGoogle, signInWithApple } = useAuth();
   const [busy, setBusy] = useState<'google' | 'apple' | null>(null);
@@ -72,7 +75,7 @@ export default function WelcomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   gradient: {
     flex: 1,
   },
@@ -108,4 +111,4 @@ const styles = StyleSheet.create({
   actions: {
     gap: Spacing.md,
   },
-});
+}));

@@ -1,11 +1,13 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { ABOUT_CONTENT } from '@/constants/content';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme-context';
 
 export default function AboutScreen() {
+  const styles = useStyles();
   return (
     <Screen scroll>
       <View style={styles.container}>
@@ -28,7 +30,7 @@ export default function AboutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   container: {
     gap: Spacing.lg,
     paddingTop: Spacing.lg,
@@ -52,4 +54,4 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     textAlign: 'center',
   },
-});
+}));

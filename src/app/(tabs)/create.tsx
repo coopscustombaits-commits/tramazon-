@@ -4,14 +4,15 @@ import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from '@/components/post-media';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 import { CAPTION_MAX, createPost } from '@/lib/db/posts';
@@ -36,6 +37,8 @@ type PickedMedia = {
  * letting people wonder where their post went.
  */
 export default function CreatePostScreen() {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const { profile } = useAuth();
 
@@ -227,7 +230,7 @@ export default function CreatePostScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   body: {
     paddingHorizontal: Spacing.xl,
     gap: Spacing.lg,
@@ -303,4 +306,4 @@ const styles = StyleSheet.create({
     flex: 1,
     color: Colors.text,
   },
-});
+}));

@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { formatMoney } from '@/lib/shopify/client';
 import type { ProductSummary } from '@/lib/shopify/types';
 
@@ -19,6 +20,8 @@ export function ProductTile({
   saved?: boolean;
   onToggleSaved?: () => void;
 }) {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const { minVariantPrice, maxVariantPrice } = product.priceRange;
   const priceLabel =
     minVariantPrice.amount === maxVariantPrice.amount
@@ -76,7 +79,7 @@ export function ProductTile({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   tile: {
     flex: 1,
     gap: Spacing.xs,
@@ -136,4 +139,4 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '700',
   },
-});
+}));

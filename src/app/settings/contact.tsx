@@ -1,13 +1,15 @@
 import * as MailComposer from 'expo-mail-composer';
-import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Text, View } from 'react-native';
 
 import { Card, Divider, ListRow } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { CONTACT_CONTENT } from '@/constants/content';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 
 export default function ContactScreen() {
+  const styles = useStyles();
   const { profile, user } = useAuth();
 
   async function emailSupport() {
@@ -94,7 +96,7 @@ export default function ContactScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   container: {
     gap: Spacing.lg,
     paddingTop: Spacing.lg,
@@ -114,4 +116,4 @@ const styles = StyleSheet.create({
   note: {
     ...Typography.caption,
   },
-});
+}));

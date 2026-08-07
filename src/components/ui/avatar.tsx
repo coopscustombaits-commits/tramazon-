@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { makeStyles } from '@/constants/theme-context';
 
-import { Colors } from '@/constants/theme';
+
 
 type AvatarProps = {
   uri?: string | null;
@@ -11,6 +12,7 @@ type AvatarProps = {
 };
 
 export function Avatar({ uri, name, size = 44 }: AvatarProps) {
+  const styles = useStyles();
   const dimensions = {
     width: size,
     height: size,
@@ -37,7 +39,7 @@ export function Avatar({ uri, name, size = 44 }: AvatarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   image: {
     backgroundColor: Colors.surfaceMuted,
   },
@@ -50,4 +52,4 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '700',
   },
-});
+}));

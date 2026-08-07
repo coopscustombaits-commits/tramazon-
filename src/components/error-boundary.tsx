@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/button';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 
 /**
  * Catches render errors anywhere below it.
@@ -47,7 +48,17 @@ export class ErrorBoundary extends Component<Props, State> {
     const { error } = this.state;
     if (!error) return this.props.children;
 
-    return (
+    // A class component can't call hooks, so the themed fallback lives in its
+    // own function component below.
+    return <ErrorScreen error={error} onRetry={this.reset} />;
+  }
+}
+
+function ErrorScreen({ error, onRetry }: { error: Error; onRetry: () => void }) {
+  const Colors = useThemeColors();
+  const styles = useStyles();
+
+  return (
       <SafeAreaView style={styles.screen}>
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.iconCircle}>
@@ -67,14 +78,13 @@ export class ErrorBoundary extends Component<Props, State> {
             </View>
           ) : null}
 
-          <Button label="Try again" onPress={this.reset} />
+          <Button label="Try again" onPress={onRetry} />
         </ScrollView>
       </SafeAreaView>
-    );
-  }
+  );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -120,4 +130,4 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontFamily: 'monospace',
   },
-});
+}));

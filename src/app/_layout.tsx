@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { ScreenLoader } from '@/components/ui/screen';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { navigationHeader } from '@/constants/theme';
+import { ThemeProvider, useTheme, useThemeColors } from '@/constants/theme-context';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 import { CartProvider } from '@/lib/shopify/cart-context';
 
@@ -18,18 +19,26 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        {/* Outside the providers, so it still renders if one of them throws. */}
-        <ErrorBoundary>
-          <AuthProvider>
-            <CartProvider>
-              <StatusBar style="dark" />
-              <RootNavigator />
-            </CartProvider>
-          </AuthProvider>
-        </ErrorBoundary>
+        {/* Theme sits outermost so even the error screen is themed. */}
+        <ThemeProvider>
+          <ErrorBoundary>
+            <AuthProvider>
+              <CartProvider>
+                <ThemedStatusBar />
+                <RootNavigator />
+              </CartProvider>
+            </AuthProvider>
+          </ErrorBoundary>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+/** Status bar icons have to invert with the theme or they vanish. */
+function ThemedStatusBar() {
+  const { scheme } = useTheme();
+  return <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />;
 }
 
 /**
@@ -41,6 +50,7 @@ export default function RootLayout() {
  *   signed-in     -> the app
  */
 function RootNavigator() {
+  const colors = useThemeColors();
   const { status, user } = useAuth();
 
   // Register for push and handle notification taps once signed in.
@@ -57,7 +67,7 @@ function RootNavigator() {
   }
 
   return (
-    <Stack screenOptions={navigationHeader}>
+    <Stack screenOptions={navigationHeader(colors)}>
       <Stack.Protected guard={status === 'signed-out'}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       </Stack.Protected>

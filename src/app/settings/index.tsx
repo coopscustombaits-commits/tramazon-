@@ -1,15 +1,18 @@
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 
+import { ThemePicker } from '@/components/theme-picker';
 import { Card, Divider, ListRow, SectionHeader } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 
 export default function SettingsScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const { profile, user, isAdmin, signOut, deleteAccount } = useAuth();
   const [busy, setBusy] = useState(false);
@@ -86,6 +89,11 @@ export default function SettingsScreen() {
             description={user?.email ?? 'Signed in with Google or Apple'}
             icon="mail-outline"
           />
+        </Card>
+
+        <SectionHeader title="Appearance" />
+        <Card style={styles.card}>
+          <ThemePicker />
         </Card>
 
         <SectionHeader title="Shop" />
@@ -170,7 +178,7 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   content: {
     paddingBottom: Spacing.xxl,
   },
@@ -188,4 +196,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.xl,
   },
-});
+}));

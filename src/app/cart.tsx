@@ -3,12 +3,13 @@ import { Image } from 'expo-image';
 import { Stack, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { recordCheckout } from '@/lib/db/orders';
 import { ShopifyError, formatMoney } from '@/lib/shopify/client';
@@ -24,6 +25,8 @@ import type { CartLine } from '@/lib/shopify/types';
  * there's no PCI surface here at all.
  */
 export default function CartScreen() {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const { cart, loading, busy, setQuantity, removeItem, refresh } = useCart();
   const { user } = useAuth();
@@ -131,6 +134,8 @@ function CartRow({
   onIncrease: () => void;
   onRemove: () => void;
 }) {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const image = line.merchandise.image ?? line.merchandise.product.featuredImage;
   // Shopify uses "Default Title" for products with no real variants.
   const variantLabel =
@@ -189,6 +194,8 @@ function QuantityButton({
   onPress: () => void;
   disabled: boolean;
 }) {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -205,7 +212,7 @@ function QuantityButton({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -299,4 +306,4 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     marginBottom: Spacing.sm,
   },
-});
+}));

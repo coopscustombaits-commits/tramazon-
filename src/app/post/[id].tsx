@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -17,7 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PostCard } from '@/components/post-card';
 import { Avatar } from '@/components/ui/avatar';
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 import {
@@ -32,6 +32,8 @@ import { shortTimeAgo } from '@/lib/format';
 import type { Post, PostComment } from '@/types/models';
 
 export default function PostDetailScreen() {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user, profile, isAdmin } = useAuth();
@@ -230,6 +232,7 @@ function CommentRow({
   onDelete: () => void;
   onPressAuthor: () => void;
 }) {
+  const styles = useStyles();
   return (
     <Pressable
       onLongPress={canDelete ? onDelete : undefined}
@@ -252,7 +255,7 @@ function CommentRow({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -332,4 +335,4 @@ const styles = StyleSheet.create({
   sendPressed: {
     opacity: 0.8,
   },
-});
+}));

@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, Share, Text, View } from 'react-native';
 
 import { PostMediaView } from '@/components/post-media';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/card';
-import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { setLike, subscribeToLike } from '@/lib/db/posts';
 import { plural, shortTimeAgo } from '@/lib/format';
 import type { Post } from '@/types/models';
@@ -28,6 +29,8 @@ export function PostCard({
   showStatus = false,
   onPressAuthor,
 }: PostCardProps) {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const [liked, setLiked] = useState(false);
   /** Local offset so the count moves the instant you tap, before the Cloud
    * Function has updated `likeCount`. */
@@ -157,7 +160,7 @@ export function PostCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
@@ -209,4 +212,4 @@ const styles = StyleSheet.create({
   shareAction: {
     marginLeft: 'auto',
   },
-});
+}));

@@ -6,7 +6,6 @@ import {
   FlatList,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -15,7 +14,8 @@ import {
 import { AppHeader } from '@/components/app-header';
 import { ProductTile } from '@/components/product-tile';
 import { EmptyState, Screen, ScreenLoader } from '@/components/ui/screen';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { ShopifyError, isShopConfigured } from '@/lib/shopify/client';
 import { useCart } from '@/lib/shopify/cart-context';
 import {
@@ -33,6 +33,8 @@ const SEARCH_DEBOUNCE_MS = 350;
 const ALL = '__all__';
 
 export default function ShopScreen() {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const { itemCount } = useCart();
 
@@ -299,7 +301,7 @@ export default function ShopScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -355,4 +357,4 @@ const styles = StyleSheet.create({
   footer: {
     paddingVertical: Spacing.xl,
   },
-});
+}));

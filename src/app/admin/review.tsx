@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 
 import { PostMediaView } from '@/components/post-media';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { EmptyState, Screen, ScreenLoader } from '@/components/ui/screen';
-import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 import { approvePost, rejectPost, subscribeToPendingPosts } from '@/lib/db/posts';
@@ -21,6 +22,7 @@ import type { Post } from '@/types/models';
  * bypass by editing the app.
  */
 export default function AdminReviewScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const { isAdmin, status, user } = useAuth();
 
@@ -126,6 +128,7 @@ function ReviewCard({
   onReject: () => void;
   onPressAuthor: () => void;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.card}>
       <Pressable
@@ -168,7 +171,7 @@ function ReviewCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   list: {
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl,
@@ -217,4 +220,4 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
   },
-});
+}));

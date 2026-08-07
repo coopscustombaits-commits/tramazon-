@@ -21,6 +21,7 @@ import {
 
 import { paths, storagePaths } from '@/lib/db/paths';
 import { db } from '@/lib/firebase';
+import { speciesSlug } from '@/lib/species';
 import { deleteFile, mediaFileName, uploadFile } from '@/lib/storage/media';
 import {
   SCHEMA_VERSION,
@@ -128,7 +129,9 @@ export async function createPost(input: CreatePostInput): Promise<string> {
       likeCount: 0,
       commentCount: 0,
       species: input.species?.trim() || null,
+      speciesSlug: speciesSlug(input.species),
       tournamentId: null,
+      challengeId: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

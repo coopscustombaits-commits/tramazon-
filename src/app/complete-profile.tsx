@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 import { isUsernameAvailable, validateUsername } from '@/lib/db/users';
@@ -15,6 +16,7 @@ import { isUsernameAvailable, validateUsername } from '@/lib/db/users';
  * partway through. Signing out is the only way past it without finishing.
  */
 export default function CompleteProfileScreen() {
+  const styles = useStyles();
   const { completeProfile, signOut, suggestedUsername } = useAuth();
 
   const [username, setUsername] = useState(suggestedUsername ?? '');
@@ -109,7 +111,7 @@ export default function CompleteProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   form: {
     gap: Spacing.lg,
     paddingTop: Spacing.xxl,
@@ -125,4 +127,4 @@ const styles = StyleSheet.create({
     minHeight: 88,
     textAlignVertical: 'top',
   },
-});
+}));

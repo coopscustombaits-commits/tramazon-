@@ -45,7 +45,8 @@ src/
     cart.tsx              cart and checkout
     complete-profile.tsx  username setup after Google/Apple sign-up
   components/ui/          buttons, inputs, cards — the design system
-  constants/theme.ts      colors, spacing, type scale
+  constants/theme.ts      light and dark palettes, spacing, type scale
+  constants/theme-context.tsx  the live theme, and makeStyles()
   constants/content.ts    About and Contact copy
   lib/
     firebase.ts           Firebase init
@@ -63,16 +64,12 @@ firestore.rules           who can read and write what — the real enforcement
 storage.rules             photo upload limits
 firestore.indexes.json    composite indexes
 docs/DATA-MODEL.md        why the database is shaped this way
+docs/ROADMAP.md           how Phase 2 and 3 fit the existing schema
 ```
 
 ## Phase 1 status
 
-One item is outstanding — the **dark mode toggle**. It isn't a toggle so much
-as a theming pass: colors are currently baked into each screen's stylesheet at
-module load, so making them switchable means routing every screen through a
-theme hook. That's a mechanical change across about thirty files, and it's next.
-
-Everything else is built. Several items need credentials that only Coop can
+All of Phase 1 is built. Several items need credentials that only Coop can
 create — the app degrades cleanly without them (social sign-in buttons hide
 themselves, the Shop tab says "coming soon", orders read "Order placed" until
 the Shopify webhook is wired up).
@@ -89,7 +86,7 @@ the Shopify webhook is wired up).
 | Settings, About, Contact | Done — awaiting real copy |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done (covers all of Phase 1), 30 rules tests |
-| Tests | 26 unit + 26 security rules, all in CI |
+| Tests | 30 unit + 30 security rules, all in CI |
 | Home feed (photo/video posts, species tag, likes, comments, share) | Done |
 | Pending → approve/reject review workflow | Done |
 | Admin review queue | Done |
@@ -99,7 +96,7 @@ the Shopify webhook is wired up).
 | Order history | Done — live status needs the webhook in `docs/SETUP.md` §9 |
 | Announcements to all users | Done |
 | Privacy & account management | Done — awaiting a policy URL |
-| Dark mode toggle | **Not done** — see below |
+| Dark mode toggle | Done |
 | In-app activity feed + notification preferences | Done |
 | Basic stats (posts, fish logged) | Done — fish logged is a placeholder until the catch log lands |
 | Public angler profiles | Done |

@@ -1,14 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PostCard } from '@/components/post-card';
 import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchApprovedPostsByAuthor } from '@/lib/db/posts';
 import { getUserProfile } from '@/lib/db/users';
@@ -22,6 +23,8 @@ import type { Post, UserProfile } from '@/types/models';
  * way for them to leak through this screen.
  */
 export default function UserProfileScreen() {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const { uid } = useLocalSearchParams<{ uid: string }>();
   const router = useRouter();
   const { user } = useAuth();
@@ -116,6 +119,7 @@ export default function UserProfileScreen() {
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
+  const styles = useStyles();
   return (
     <View style={styles.stat}>
       <Text style={styles.statValue}>{value}</Text>
@@ -124,7 +128,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -178,4 +182,4 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     textAlign: 'center',
   },
-});
+}));

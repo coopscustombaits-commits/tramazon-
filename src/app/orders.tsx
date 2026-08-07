@@ -3,12 +3,13 @@ import { Image } from 'expo-image';
 import { Stack } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Linking, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge } from '@/components/ui/card';
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { orderStatusLabel, orderStatusTone, subscribeToOrders } from '@/lib/db/orders';
 import { formatMoney } from '@/lib/shopify/client';
@@ -23,6 +24,7 @@ import type { Order } from '@/types/models';
  * reads as "Order placed", which is accurate rather than optimistic.
  */
 export default function OrdersScreen() {
+  const styles = useStyles();
   const { user } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -67,6 +69,8 @@ export default function OrdersScreen() {
 }
 
 function OrderCard({ order }: { order: Order }) {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   async function openStatus() {
     if (!order.statusUrl) return;
     await WebBrowser.openBrowserAsync(order.statusUrl);
@@ -134,7 +138,7 @@ function OrderCard({ order }: { order: Order }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: { flex: 1, backgroundColor: Colors.background },
   list: { padding: Spacing.lg, flexGrow: 1 },
   separator: { height: Spacing.lg },
@@ -177,4 +181,4 @@ const styles = StyleSheet.create({
   },
   total: { ...Typography.heading },
   link: { ...Typography.body, color: Colors.link, fontWeight: '600' },
-});
+}));

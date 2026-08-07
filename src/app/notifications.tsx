@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography, type ThemeColors } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
   markAllNotificationsRead,
@@ -16,23 +17,33 @@ import {
 import { shortTimeAgo } from '@/lib/format';
 import type { AppNotification, NotificationType } from '@/types/models';
 
-/** Icon and tint per notification kind. Unknown types fall back to a bell. */
-const APPEARANCE: Record<
-  NotificationType,
-  { icon: keyof typeof Ionicons.glyphMap; color: string }
-> = {
-  post_approved: { icon: 'checkmark-circle', color: Colors.success },
-  post_rejected: { icon: 'close-circle', color: Colors.danger },
-  post_needs_review: { icon: 'shield-checkmark', color: Colors.accent },
-  post_liked: { icon: 'heart', color: Colors.danger },
-  post_commented: { icon: 'chatbubble', color: Colors.link },
-  new_follower: { icon: 'person-add', color: Colors.primary },
-  new_message: { icon: 'mail', color: Colors.link },
-  badge_earned: { icon: 'ribbon', color: Colors.accent },
-  announcement: { icon: 'megaphone', color: Colors.primary },
-};
+/**
+ * Icon and tint per notification kind. Built from the live palette rather than
+ * a module constant, so the colors follow the theme.
+ */
+function appearanceFor(
+  type: NotificationType,
+  Colors: ThemeColors,
+): { icon: keyof typeof Ionicons.glyphMap; color: string } {
+  const table: Record<
+    NotificationType,
+    { icon: keyof typeof Ionicons.glyphMap; color: string }
+  > = {
+    post_approved: { icon: 'checkmark-circle', color: Colors.success },
+    post_rejected: { icon: 'close-circle', color: Colors.danger },
+    post_needs_review: { icon: 'shield-checkmark', color: Colors.accent },
+    post_liked: { icon: 'heart', color: Colors.danger },
+    post_commented: { icon: 'chatbubble', color: Colors.link },
+    new_follower: { icon: 'person-add', color: Colors.primary },
+    new_message: { icon: 'mail', color: Colors.link },
+    badge_earned: { icon: 'ribbon', color: Colors.accent },
+    announcement: { icon: 'megaphone', color: Colors.primary },
+  };
+  return table[type] ?? { icon: 'notifications', color: Colors.primary };
+}
 
 export default function NotificationsScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const { user } = useAuth();
 
@@ -114,10 +125,9 @@ function NotificationRow({
   notification: AppNotification;
   onPress: () => void;
 }) {
-  const appearance = APPEARANCE[notification.type] ?? {
-    icon: 'notifications' as const,
-    color: Colors.primary,
-  };
+  const Colors = useThemeColors();
+  const styles = useStyles();
+  const appearance = appearanceFor(notification.type, Colors);
   const unread = notification.readAt === null;
 
   return (
@@ -144,7 +154,7 @@ function NotificationRow({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -207,4 +217,4 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
     marginTop: Spacing.sm,
   },
-});
+}));

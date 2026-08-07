@@ -1,9 +1,10 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useEffect, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme-context';
 import { isAppleSignInAvailable } from '@/lib/auth/apple';
 import { isGoogleSignInAvailable } from '@/lib/auth/google';
 
@@ -26,6 +27,7 @@ export function SocialSignIn({
   busy = null,
   disabled = false,
 }: SocialSignInProps) {
+  const styles = useStyles();
   const [appleAvailable, setAppleAvailable] = useState(false);
   const googleAvailable = isGoogleSignInAvailable();
 
@@ -80,7 +82,7 @@ export function SocialSignIn({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   container: {
     gap: Spacing.md,
   },
@@ -108,4 +110,4 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     textAlign: 'center',
   },
-});
+}));

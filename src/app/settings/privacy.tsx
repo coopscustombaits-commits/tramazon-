@@ -1,9 +1,10 @@
-import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Text, View } from 'react-native';
 
 import { Card, Divider, ListRow, SectionHeader } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { PRIVACY_CONTENT } from '@/constants/content';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 
@@ -15,6 +16,7 @@ import { authErrorMessage } from '@/lib/auth/errors';
  * in `constants/content.ts`.
  */
 export default function PrivacyScreen() {
+  const styles = useStyles();
   const { user, sendPasswordReset } = useAuth();
 
   async function resetPassword() {
@@ -91,7 +93,7 @@ export default function PrivacyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   body: {
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.lg,
@@ -102,4 +104,4 @@ const styles = StyleSheet.create({
   rows: { padding: 0, overflow: 'hidden', borderRadius: Radius.lg },
   item: { ...Typography.body, color: Colors.textMuted },
   note: { ...Typography.caption, marginTop: Spacing.md },
-});
+}));

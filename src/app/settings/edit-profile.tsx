@@ -2,13 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Screen, ScreenLoader } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 import { storagePaths } from '@/lib/db/paths';
@@ -18,6 +19,8 @@ import { mediaFileName, uploadFile } from '@/lib/storage/media';
 const BIO_MAX = 200;
 
 export default function EditProfileScreen() {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const { profile, user } = useAuth();
 
@@ -155,7 +158,7 @@ export default function EditProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   form: {
     gap: Spacing.lg,
     paddingTop: Spacing.lg,
@@ -187,4 +190,4 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.8,
   },
-});
+}));

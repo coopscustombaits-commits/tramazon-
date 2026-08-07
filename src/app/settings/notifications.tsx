@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Switch, Text, View } from 'react-native';
 
 import { Card, Divider, ListRow } from '@/components/ui/card';
 import { Screen, ScreenLoader } from '@/components/ui/screen';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 import {
@@ -45,6 +46,8 @@ const SETTINGS: {
  * one off stops the push and the in-app record together.
  */
 export default function NotificationSettingsScreen() {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const { user } = useAuth();
 
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
@@ -113,7 +116,7 @@ export default function NotificationSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   body: {
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.lg,
@@ -127,4 +130,4 @@ const styles = StyleSheet.create({
   note: {
     ...Typography.caption,
   },
-});
+}));

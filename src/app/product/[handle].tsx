@@ -6,7 +6,6 @@ import {
   Dimensions,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -16,7 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
-import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { ShopifyError, formatMoney } from '@/lib/shopify/client';
 import { useAuth } from '@/lib/auth/auth-context';
 import { addToWishlist, removeFromWishlist, subscribeToWishlist } from '@/lib/db/wishlist';
@@ -32,6 +32,8 @@ import type { Product } from '@/lib/shopify/types';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ProductScreen() {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const { handle } = useLocalSearchParams<{ handle: string }>();
   const router = useRouter();
   const { addItem, busy, itemCount } = useCart();
@@ -252,7 +254,7 @@ export default function ProductScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -337,4 +339,4 @@ const styles = StyleSheet.create({
     color: Colors.danger,
     textAlign: 'center',
   },
-});
+}));

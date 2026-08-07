@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 
 import { SocialSignIn } from '@/components/social-sign-in';
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
 import { Spacing, Typography } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage, isCancellation } from '@/lib/auth/errors';
 import { isUsernameAvailable, validateUsername } from '@/lib/db/users';
@@ -20,6 +21,7 @@ type FieldErrors = {
 };
 
 export default function SignUpScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const { signUpWithEmail, signInWithGoogle, signInWithApple } = useAuth();
 
@@ -178,7 +180,7 @@ export default function SignUpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   form: {
     gap: Spacing.lg,
     paddingTop: Spacing.lg,
@@ -188,7 +190,7 @@ const styles = StyleSheet.create({
   },
   subheading: {
     ...Typography.body,
-    color: Typography.caption.color,
+    color: Colors.textMuted,
     marginTop: -Spacing.md,
   },
   footer: {
@@ -199,4 +201,4 @@ const styles = StyleSheet.create({
   footerText: {
     ...Typography.caption,
   },
-});
+}));

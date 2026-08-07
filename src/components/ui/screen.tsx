@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   View,
   type StyleProp,
@@ -12,7 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 
 type ScreenProps = {
   children: ReactNode;
@@ -35,6 +35,7 @@ export function Screen({
   contentContainerStyle,
   style,
 }: ScreenProps) {
+  const styles = useStyles();
   const content = scroll ? (
     <ScrollView
       style={styles.flex}
@@ -70,6 +71,8 @@ export function Screen({
 
 /** Full-screen spinner, for auth restore and initial loads. */
 export function ScreenLoader({ label }: { label?: string }) {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   return (
     <View style={styles.loader}>
       <ActivityIndicator size="large" color={Colors.primary} />
@@ -88,6 +91,7 @@ export function EmptyState({
   message?: string;
   action?: ReactNode;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.empty}>
       <Text style={styles.emptyTitle}>{title}</Text>
@@ -97,7 +101,7 @@ export function EmptyState({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -138,4 +142,4 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
   },
-});
+}));

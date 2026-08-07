@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { ImageStyle } from 'expo-image';
 
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import type { PostMedia } from '@/types/models';
 
 /**
@@ -25,6 +26,7 @@ export function PostMediaView({
   style?: StyleProp<ViewStyle>;
   playable?: boolean;
 }) {
+  const styles = useStyles();
   const aspectRatio =
     media.width && media.height
       ? Math.min(Math.max(media.width / media.height, 0.6), 1.6)
@@ -56,6 +58,8 @@ function PostVideo({
   playable: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const [started, setStarted] = useState(false);
 
   const player = useVideoPlayer(media.url, (instance) => {
@@ -122,7 +126,7 @@ export function formatDuration(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   media: {
     width: '100%',
     backgroundColor: Colors.surfaceMuted,
@@ -155,4 +159,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-});
+}));

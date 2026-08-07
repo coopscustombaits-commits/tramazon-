@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
 import { PostCard } from '@/components/post-card';
@@ -9,12 +9,15 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge, Card } from '@/components/ui/card';
 import { Screen, ScreenLoader } from '@/components/ui/screen';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchPostsByAuthor } from '@/lib/db/posts';
 import type { Post } from '@/types/models';
 
 export default function ProfileScreen() {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const { profile, isAdmin } = useAuth();
 
@@ -127,6 +130,7 @@ export default function ProfileScreen() {
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
+  const styles = useStyles();
   return (
     <View style={styles.stat}>
       <Text style={styles.statValue}>{value}</Text>
@@ -135,7 +139,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   content: {
     paddingBottom: Spacing.xxl,
   },
@@ -203,4 +207,4 @@ const styles = StyleSheet.create({
   placeholderBody: {
     ...Typography.caption,
   },
-});
+}));

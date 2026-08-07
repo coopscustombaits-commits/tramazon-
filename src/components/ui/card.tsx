@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { type ReactNode } from 'react';
 import {
   Pressable,
-  StyleSheet,
   Text,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 
-import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { Radius, Shadows, Spacing, Typography } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 
 export function Card({
   children,
@@ -18,14 +18,17 @@ export function Card({
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  const styles = useStyles();
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
 export function SectionHeader({ title }: { title: string }) {
+  const styles = useStyles();
   return <Text style={styles.sectionHeader}>{title}</Text>;
 }
 
 export function Divider() {
+  const styles = useStyles();
   return <View style={styles.divider} />;
 }
 
@@ -48,6 +51,8 @@ export function ListRow({
   destructive = false,
   right,
 }: ListRowProps) {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const color = destructive ? Colors.danger : Colors.text;
 
   return (
@@ -83,6 +88,8 @@ export function Badge({
   label: string;
   tone?: 'neutral' | 'pending' | 'approved' | 'rejected';
 }) {
+  const styles = useStyles();
+  const Colors = useThemeColors();
   const tones = {
     neutral: { background: Colors.surfaceMuted, text: Colors.textMuted },
     pending: { background: Colors.warningTint, text: Colors.warning },
@@ -98,7 +105,7 @@ export function Badge({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
@@ -150,4 +157,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
-});
+}));

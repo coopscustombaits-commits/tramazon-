@@ -1,15 +1,17 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { makeStyles } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 
 export default function ForgotPasswordScreen() {
+  const styles = useStyles();
   const router = useRouter();
   const { sendPasswordReset } = useAuth();
 
@@ -94,7 +96,7 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   form: {
     gap: Spacing.lg,
     paddingTop: Spacing.lg,
@@ -114,4 +116,4 @@ const styles = StyleSheet.create({
   note: {
     ...Typography.caption,
   },
-});
+}));

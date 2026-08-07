@@ -1,13 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 
 import { AppHeader } from '@/components/app-header';
 import { PostCard } from '@/components/post-card';
 import { Button } from '@/components/ui/button';
 import { EmptyState, Screen, ScreenLoader } from '@/components/ui/screen';
-import { Colors, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
+import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useUnreadNotifications } from '@/hooks/use-unread-notifications';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchFeedPage, type PostPage } from '@/lib/db/posts';
@@ -15,6 +16,8 @@ import type { Post } from '@/types/models';
 
 /** The public feed — approved catches, newest first. */
 export default function FeedScreen() {
+  const Colors = useThemeColors();
+  const styles = useStyles();
   const router = useRouter();
   const { user } = useAuth();
   const unread = useUnreadNotifications(user?.uid ?? null);
@@ -151,7 +154,7 @@ export default function FeedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((Colors) => ({
   list: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xxl,
@@ -163,4 +166,4 @@ const styles = StyleSheet.create({
   footer: {
     paddingVertical: Spacing.xl,
   },
-});
+}));
