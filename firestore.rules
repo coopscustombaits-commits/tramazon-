@@ -231,6 +231,69 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------------
+    // Reviews — productReviews/{handle} and baitReviews/{slug}
+    //
+    // Identical rules for both, so they're written once here and applied to
+    // each root below. The shape that matters:
+    //
+    //   * the review document id IS the author's uid, which is what enforces
+    //     one review per person per thing — you cannot stack five;
+    //   * `reviewCount`, `ratingSum` and `ratingAverage` on the summary are
+    //     server-written, because an average a client can set is not a rating;
+    //   * `verifiedPurchase` is server-written for the same reason.
+    // ---------------------------------------------------------------------
+
+    function reviewSummaryCreate() {
+      return accountActive()
+        && isValidString(request.resource.data.title, 200)
+        && request.resource.data.title.size() > 0
+        && request.resource.data.reviewCount == 0
+        && request.resource.data.ratingSum == 0
+        && request.resource.data.ratingAverage == 0;
+    }
+
+    function reviewWrite(subjectId, authorUid) {
+      return accountActive()
+        && isSelf(authorUid)
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.subjectId == subjectId
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && isValidString(request.resource.data.text, 1500)
+        // A verified-purchase badge you can award yourself is worse than no
+        // badge at all. A Cloud Function checks the order history and flips it.
+        && request.resource.data.verifiedPurchase == false;
+    }
+
+    match /productReviews/{subjectId} {
+      allow read: if isSignedIn();
+      allow create: if reviewSummaryCreate();
+      // Counts and averages are derived from the reviews below.
+      allow update: if false;
+      allow delete: if isAdmin();
+
+      match /reviews/{authorUid} {
+        allow read: if isSignedIn();
+        allow create, update: if reviewWrite(subjectId, authorUid);
+        allow delete: if isSelf(authorUid) || isAdmin();
+      }
+    }
+
+    match /baitReviews/{subjectId} {
+      allow read: if isSignedIn();
+      allow create: if reviewSummaryCreate();
+      allow update: if false;
+      allow delete: if isAdmin();
+
+      match /reviews/{authorUid} {
+        allow read: if isSignedIn();
+        allow create, update: if reviewWrite(subjectId, authorUid);
+        allow delete: if isSelf(authorUid) || isAdmin();
+      }
+    }
+
+    // ---------------------------------------------------------------------
     // conversations/{conversationId} — private messages
     //
     // The document id is the two uids sorted and joined with '_'. That's

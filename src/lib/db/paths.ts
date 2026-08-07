@@ -35,6 +35,17 @@ export const paths = {
   announcements: 'announcements',
   announcement: (id: string) => `announcements/${id}`,
 
+  // Reviews. Both kinds share a shape, so the path builders take the same
+  // arguments and `lib/db/reviews.ts` picks the root.
+  reviewRoot: (kind: 'product' | 'bait') =>
+    kind === 'product' ? 'productReviews' : 'baitReviews',
+  reviewSummary: (kind: 'product' | 'bait', subjectId: string) =>
+    `${paths.reviewRoot(kind)}/${subjectId}`,
+  reviews: (kind: 'product' | 'bait', subjectId: string) =>
+    `${paths.reviewRoot(kind)}/${subjectId}/reviews`,
+  review: (kind: 'product' | 'bait', subjectId: string, uid: string) =>
+    `${paths.reviewRoot(kind)}/${subjectId}/reviews/${uid}`,
+
   conversations: 'conversations',
   conversation: (id: string) => `conversations/${id}`,
   conversationMessages: (id: string) => `conversations/${id}/messages`,

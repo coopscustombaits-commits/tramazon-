@@ -38,8 +38,8 @@ because a missing one of these is a rejection, not a feature gap.
 | Search posts | `posts.keywords` + `array-contains` | **Built** — see the note below |
 | Species communities | `posts.speciesSlug` ★ + index | **Built** |
 | Private messaging | New `conversations` collection | **Built** |
-| Product reviews | New `productReviews` collection | Ready |
-| Bait reviews | New `baitReviews` collection | Ready |
+| Product reviews | New `productReviews` collection | **Built** |
+| Bait reviews | New `baitReviews` collection | **Built** |
 | Photo and video posts | — | **Done in Phase 1** |
 | YouTube integration | New `articles` collection | Ready |
 
@@ -109,11 +109,35 @@ so posts written before this feature existed have no `keywords` field and won't
 turn up in a search. Since nothing has shipped yet, that set is empty. If it
 ever isn't, a one-off backfill script over `posts` fixes it.
 
-**Product and bait reviews.** Two separate collections, because the brief
-correctly separates them: `productReviews/{shopifyProductId}/reviews/{uid}`
-for reviews tied to a product in the shop, and a top-level `baitReviews` for
-reviews of baits in general use. Both follow the same pattern as post comments
-— server-written counters and averages, client-written text.
+**Product and bait reviews.** Two collections, because the brief separates
+them and so does the meaning: `productReviews/{handle}` for things Coop sells,
+`baitReviews/{slug}` for the community reviewing any bait at all. The documents
+are the same shape, so one data module and one set of components serve both.
+
+Three things worth knowing:
+
+*The review's document id is the author's uid.* That's what enforces one review
+per person per thing — there is no write that stacks five, and editing yours
+overwrites rather than appends.
+
+*The average is server-written.* Each subject has a summary document holding
+`reviewCount`, `ratingSum` and `ratingAverage`; the client may create it (it's
+the only side that knows the display title) but every counted field must start
+at zero and can never be updated from the app. An average a client can set is
+not a rating. Keeping `ratingSum` alongside the count is what makes a new
+review two increments rather than a re-read of every review.
+
+*The verified-purchase badge is server-set.* Clients are required to write
+`verifiedPurchase: false`; a Cloud Function then checks the author's paid
+orders for the product handle and flips it. Order lines now record
+`productHandle` for exactly this — matching on a title would break the first
+time a product was renamed.
+
+Product reviews key on the Shopify **handle**, not the product id: it's what
+the app already routes on, and it survives a product being recreated in
+Shopify. Bait names are slugged (`lib/slug.ts`) so "Chatterbait", "chatterbait"
+and "CHATTERBAIT" are one bait with three reviews rather than three baits with
+one each.
 
 **YouTube.** Store the video id, not an embed URL, in an `articles` collection
 alongside tips and sponsor content. Rendering is `expo-video` or a WebView; no

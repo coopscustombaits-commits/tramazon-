@@ -278,6 +278,11 @@ export type Order = Timestamps & {
   totalCurrency: string;
   /** Enough to render the order without calling Shopify. */
   lines: {
+    /**
+     * Shopify product handle. Recorded so a review can be marked a verified
+     * purchase — that check needs a stable key, and a title is not one.
+     */
+    productHandle: string;
     title: string;
     variantTitle: string | null;
     quantity: number;
@@ -361,6 +366,62 @@ export type Follow = {
   followerId: string;
   followingId: string;
   createdAt: Timestamp | null;
+};
+
+// ---------------------------------------------------------------------------
+// Reviews
+//
+// Two collections, because the brief separates them and so does the meaning:
+//
+//   productReviews/{handle}       reviews of something Coop sells. Keyed on the
+//                                 Shopify product handle, and a review can be
+//                                 marked a verified purchase.
+//   baitReviews/{slug}            the community reviewing any bait at all,
+//                                 including ones Coop doesn't sell. Keyed on a
+//                                 slug of whatever name they typed.
+//
+// The documents are the same shape, so one data-access module and one set of
+// components serve both. The summary document above each is server-written —
+// an average rating a client could set is not a rating.
+// ---------------------------------------------------------------------------
+
+export type ReviewKind = 'product' | 'bait';
+
+/** `productReviews/{handle}` or `baitReviews/{slug}` — the aggregate. */
+export type ReviewSummary = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  /** Display name: the product title, or the bait name as first typed. */
+  title: string;
+  reviewCount: number;
+  /** Kept alongside the average so a new review is one increment, not a scan. */
+  ratingSum: number;
+  /** `ratingSum / reviewCount`, one decimal. Server-written. */
+  ratingAverage: number;
+};
+
+/**
+ * `.../{id}/reviews/{uid}` — one review.
+ *
+ * The document id is the author's uid, which is what enforces one review per
+ * person per thing. Editing yours overwrites it; there's no way to stack five.
+ */
+export type Review = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  kind: ReviewKind;
+  /** The parent's id — the product handle or bait slug. */
+  subjectId: string;
+  authorId: string;
+  author: AuthorSnapshot;
+  /** 1 to 5. */
+  rating: number;
+  text: string;
+  /**
+   * Set by a Cloud Function that checks the author's order history. Clients
+   * are required to write `false`, so the badge means what it says.
+   */
+  verifiedPurchase: boolean;
 };
 
 // ---------------------------------------------------------------------------

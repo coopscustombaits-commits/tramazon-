@@ -265,6 +265,110 @@ export const onFollowDeleted = onDocumentDeleted('follows/{edgeId}', async (even
 });
 
 // ---------------------------------------------------------------------------
+// Reviews
+// ---------------------------------------------------------------------------
+
+/**
+ * Recalculate a review summary from a single review's change.
+ *
+ * `ratingSum` is kept alongside the count so the average is two increments
+ * rather than a re-read of every review — which matters on a product with a
+ * few hundred of them.
+ *
+ * `delta` is the change in review count (+1, 0 or -1); `ratingDelta` is the
+ * change in the summed rating.
+ */
+async function applyReviewDelta(
+  root: string,
+  subjectId: string,
+  delta: number,
+  ratingDelta: number,
+): Promise<void> {
+  const summaryRef = db().doc(`${root}/${subjectId}`);
+  await db()
+    .runTransaction(async (tx) => {
+      const summary = await tx.get(summaryRef);
+      if (!summary.exists) return;
+
+      const reviewCount = Math.max(0, (summary.get('reviewCount') ?? 0) + delta);
+      const ratingSum = Math.max(0, (summary.get('ratingSum') ?? 0) + ratingDelta);
+      tx.update(summaryRef, {
+        reviewCount,
+        ratingSum,
+        // One decimal, so the number the app shows is the number stored.
+        ratingAverage:
+          reviewCount === 0 ? 0 : Math.round((ratingSum / reviewCount) * 10) / 10,
+        updatedAt: new Date(),
+      });
+    })
+    .catch((error) => logger.warn('Could not update review summary', { error, root }));
+}
+
+/**
+ * Has this angler actually bought this product?
+ *
+ * Matched on the Shopify product handle recorded on each order line. Nothing
+ * about the badge is client-assertable — the rules force `verifiedPurchase`
+ * to false on write, and only this function ever sets it true.
+ */
+async function hasPurchased(uid: string, handle: string): Promise<boolean> {
+  const orders = await db()
+    .collection(`users/${uid}/orders`)
+    .where('status', 'in', ['paid', 'partially_fulfilled', 'fulfilled'])
+    .limit(50)
+    .get();
+
+  return orders.docs.some((order) => {
+    const lines = (order.get('lines') as { productHandle?: string }[] | undefined) ?? [];
+    return lines.some((line) => line.productHandle === handle);
+  });
+}
+
+function reviewTrigger(root: string) {
+  return {
+    created: onDocumentCreated(`${root}/{subjectId}/reviews/{authorUid}`, async (event) => {
+      const review = event.data?.data();
+      if (!review) return;
+
+      const { subjectId, authorUid } = event.params;
+      await applyReviewDelta(root, subjectId, 1, review.rating ?? 0);
+
+      // Only shop products can be verified — a community bait review has no
+      // order to match against.
+      if (root === 'productReviews' && (await hasPurchased(authorUid, subjectId))) {
+        await event.data?.ref
+          .update({ verifiedPurchase: true })
+          .catch((error) => logger.warn('Could not mark verified purchase', { error }));
+      }
+    }),
+
+    updated: onDocumentUpdated(`${root}/{subjectId}/reviews/{authorUid}`, async (event) => {
+      const before = event.data?.before.data();
+      const after = event.data?.after.data();
+      if (!before || !after || before.rating === after.rating) return;
+      // The count is unchanged — only the sum moves.
+      await applyReviewDelta(root, event.params.subjectId, 0, after.rating - before.rating);
+    }),
+
+    deleted: onDocumentDeleted(`${root}/{subjectId}/reviews/{authorUid}`, async (event) => {
+      const review = event.data?.data();
+      if (!review) return;
+      await applyReviewDelta(root, event.params.subjectId, -1, -(review.rating ?? 0));
+    }),
+  };
+}
+
+const productReviewTriggers = reviewTrigger('productReviews');
+const baitReviewTriggers = reviewTrigger('baitReviews');
+
+export const onProductReviewCreated = productReviewTriggers.created;
+export const onProductReviewUpdated = productReviewTriggers.updated;
+export const onProductReviewDeleted = productReviewTriggers.deleted;
+export const onBaitReviewCreated = baitReviewTriggers.created;
+export const onBaitReviewUpdated = baitReviewTriggers.updated;
+export const onBaitReviewDeleted = baitReviewTriggers.deleted;
+
+// ---------------------------------------------------------------------------
 // Direct messages
 // ---------------------------------------------------------------------------
 

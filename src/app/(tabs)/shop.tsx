@@ -197,6 +197,11 @@ export default function ShopScreen() {
         title="Shop"
         actions={[
           {
+            icon: 'star-outline',
+            label: 'Bait reviews',
+            onPress: () => router.push('/baits'),
+          },
+          {
             icon: 'heart-outline',
             label: 'Wishlist',
             onPress: () => router.push('/wishlist'),

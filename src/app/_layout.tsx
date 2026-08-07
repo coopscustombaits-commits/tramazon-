@@ -102,6 +102,8 @@ function RootNavigator() {
         <Stack.Screen name="notifications" options={{ title: 'Activity' }} />
         <Stack.Screen name="user/[uid]" options={{ title: 'Angler' }} />
         <Stack.Screen name="search" options={{ title: 'Search' }} />
+        <Stack.Screen name="baits/index" options={{ title: 'Bait Reviews' }} />
+        <Stack.Screen name="baits/[slug]" options={{ title: 'Bait' }} />
         <Stack.Screen name="messages/index" options={{ title: 'Messages' }} />
         <Stack.Screen name="messages/[id]" options={{ title: 'Message' }} />
         <Stack.Screen name="species/index" options={{ title: 'Species' }} />

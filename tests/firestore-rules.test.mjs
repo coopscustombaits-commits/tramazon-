@@ -1080,3 +1080,162 @@ test('the inbox query is allowed, and only for your own threads', async () => {
   )));
   await assertFails(getDocs(query(collection(asA(), 'conversations'), limit(50))));
 });
+
+// ---------------------------------------------------------------------------
+// Reviews
+// ---------------------------------------------------------------------------
+
+const REVIEWER = 'reviewer-uid';
+const asReviewer = () => env.authenticatedContext(REVIEWER).firestore();
+
+function summary(title = 'Deep Diver') {
+  return {
+    schemaVersion: 1,
+    title,
+    reviewCount: 0,
+    ratingSum: 0,
+    ratingAverage: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+function review(authorId, subjectId, kind, overrides = {}) {
+  return {
+    schemaVersion: 1,
+    kind,
+    subjectId,
+    authorId,
+    author: { uid: authorId, username: 'Reviewer', photoURL: null },
+    rating: 4,
+    text: 'Caught three on it.',
+    verifiedPurchase: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+test('set up the review fixtures', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'users', REVIEWER), profile(REVIEWER, 'Reviewer'));
+  });
+});
+
+test('a review summary starts empty and is never client-editable after that', async () => {
+  await assertFails(
+    setDoc(doc(asReviewer(), 'productReviews', 'deep-diver'), {
+      ...summary(),
+      reviewCount: 12,
+      ratingAverage: 5,
+    }),
+  );
+  await assertSucceeds(
+    setDoc(doc(asReviewer(), 'productReviews', 'deep-diver'), summary()),
+  );
+  // The average is derived from the reviews below it. If a client could set
+  // it, it would not be a rating.
+  await assertFails(
+    updateDoc(doc(asReviewer(), 'productReviews', 'deep-diver'), { ratingAverage: 5 }),
+  );
+});
+
+test('a review is written under your own uid and nobody else’s', async () => {
+  await assertSucceeds(
+    setDoc(
+      doc(asReviewer(), 'productReviews', 'deep-diver', 'reviews', REVIEWER),
+      review(REVIEWER, 'deep-diver', 'product'),
+    ),
+  );
+  // The document id is the author, which is what stops five reviews from one
+  // person. Writing under someone else's id is the same attack.
+  await assertFails(
+    setDoc(
+      doc(asReviewer(), 'productReviews', 'deep-diver', 'reviews', ANGLER),
+      review(ANGLER, 'deep-diver', 'product'),
+    ),
+  );
+  await assertFails(
+    setDoc(
+      doc(asReviewer(), 'productReviews', 'deep-diver', 'reviews', REVIEWER),
+      review(ANGLER, 'deep-diver', 'product'),
+    ),
+  );
+});
+
+test('a rating has to be a whole number from 1 to 5', async () => {
+  for (const rating of [0, 6, -1, 4.5, '5']) {
+    await assertFails(
+      setDoc(
+        doc(asReviewer(), 'baitReviews', 'ned-rig', 'reviews', REVIEWER),
+        review(REVIEWER, 'ned-rig', 'bait', { rating }),
+      ),
+    );
+  }
+});
+
+test('you cannot award yourself a verified-purchase badge', async () => {
+  await assertFails(
+    setDoc(
+      doc(asReviewer(), 'productReviews', 'deep-diver', 'reviews', REVIEWER),
+      review(REVIEWER, 'deep-diver', 'product', { verifiedPurchase: true }),
+    ),
+  );
+});
+
+test('a review cannot claim to be about a different product', async () => {
+  await assertFails(
+    setDoc(
+      doc(asReviewer(), 'productReviews', 'deep-diver', 'reviews', REVIEWER),
+      review(REVIEWER, 'some-other-bait', 'product'),
+    ),
+  );
+});
+
+test('you can edit and delete your own review, and an admin can delete any', async () => {
+  await assertSucceeds(
+    setDoc(
+      doc(asReviewer(), 'productReviews', 'deep-diver', 'reviews', REVIEWER),
+      review(REVIEWER, 'deep-diver', 'product', { rating: 5, text: 'Even better' }),
+    ),
+  );
+  await assertFails(
+    deleteDoc(doc(asAngler(), 'productReviews', 'deep-diver', 'reviews', REVIEWER)),
+  );
+  await assertSucceeds(
+    deleteDoc(doc(asOwner(), 'productReviews', 'deep-diver', 'reviews', REVIEWER)),
+  );
+});
+
+test('bait reviews follow the same rules as product reviews', async () => {
+  await assertSucceeds(setDoc(doc(asReviewer(), 'baitReviews', 'ned-rig'), summary('Ned rig')));
+  await assertSucceeds(
+    setDoc(
+      doc(asReviewer(), 'baitReviews', 'ned-rig', 'reviews', REVIEWER),
+      review(REVIEWER, 'ned-rig', 'bait'),
+    ),
+  );
+  await assertFails(
+    updateDoc(doc(asReviewer(), 'baitReviews', 'ned-rig'), { reviewCount: 99 }),
+  );
+});
+
+test('reviews are readable by any signed-in user, not by guests', async () => {
+  await assertSucceeds(getDoc(doc(asAngler(), 'baitReviews', 'ned-rig')));
+  await assertSucceeds(getDocs(query(
+    collection(asAngler(), 'baitReviews', 'ned-rig', 'reviews'),
+    orderBy('createdAt', 'desc'),
+    limit(50),
+  )));
+  await assertFails(getDoc(doc(asGuest(), 'baitReviews', 'ned-rig')));
+});
+
+test('a banned account cannot review', async () => {
+  const banned = env.authenticatedContext(BANNED).firestore();
+  await assertFails(
+    setDoc(
+      doc(banned, 'baitReviews', 'ned-rig', 'reviews', BANNED),
+      review(BANNED, 'ned-rig', 'bait'),
+    ),
+  );
+});

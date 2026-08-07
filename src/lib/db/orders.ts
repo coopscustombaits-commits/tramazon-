@@ -58,6 +58,7 @@ export async function recordCheckout(uid: string, cart: Cart): Promise<string> {
     totalAmount: cart.cost.totalAmount.amount,
     totalCurrency: cart.cost.totalAmount.currencyCode,
     lines: cart.lines.map((line) => ({
+      productHandle: line.merchandise.product.handle,
       title: line.merchandise.product.title,
       variantTitle:
         line.merchandise.title && line.merchandise.title !== 'Default Title'

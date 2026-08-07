@@ -41,6 +41,7 @@ src/
     orders.tsx            order history and status
     user/[uid].tsx        another angler's profile
     messages/             direct message inbox and threads
+    baits/                community bait reviews
     search.tsx            search anglers and catches
     species/              per-species hubs
     notifications.tsx     in-app activity history
@@ -84,7 +85,7 @@ restructuring. That is not the same as being built.
 | Phase | Built |
 | --- | --- |
 | **1 — Core app** | Everything |
-| **2 — Community** | 6 of 9 items |
+| **2 — Community** | 8 of 9 items |
 | **3 — Engagement** | 1 of 9 items |
 | **4 — Admin dashboard & moderation** | Enforcement only, no dashboard |
 
@@ -116,9 +117,9 @@ restructuring. That is not the same as being built.
 | Dark mode toggle | Done |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done, covers all four phases |
-| Tests | 42 unit + 62 security rules, all in CI |
+| Tests | 49 unit + 72 security rules, all in CI |
 
-### Phase 2 — Community · 6 of 9
+### Phase 2 — Community · 8 of 9
 
 | Feature | State |
 | --- | --- |
@@ -128,8 +129,8 @@ restructuring. That is not the same as being built.
 | Search for posts | **Done** — keyword search, whole words only ([why](docs/ROADMAP.md#phase-2--community)) |
 | Species communities | **Done** — 12 curated hubs |
 | Private messaging | **Done** — one-to-one, blocking enforced in the rules |
-| Product reviews | Not built |
-| Bait reviews | Not built |
+| Product reviews | **Done** — with a server-verified purchase badge |
+| Bait reviews | **Done** — community reviews of any bait |
 | YouTube integration | Not built |
 
 ### Phase 3 — Engagement · 1 of 9

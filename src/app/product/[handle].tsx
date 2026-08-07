@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
 
+import { ReviewsSection } from '@/components/reviews-section';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
 import { Radius, Spacing, Typography } from '@/constants/theme';
@@ -248,6 +249,18 @@ export default function ProductScreen() {
           {!variant && hasRealOptions(product) ? (
             <Text style={styles.hint}>That combination isn&apos;t available.</Text>
           ) : null}
+
+          <View style={styles.reviewsDivider} />
+
+          {/* Keyed on the handle, not the Shopify product id: the handle is
+              what the app already routes on, and it survives a product being
+              recreated in Shopify. */}
+          <ReviewsSection
+            kind="product"
+            subjectId={product.handle}
+            subjectTitle={product.title}
+            onPressAuthor={(uid) => router.push(`/user/${uid}`)}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -255,6 +268,11 @@ export default function ProductScreen() {
 }
 
 const useStyles = makeStyles((Colors) => ({
+  reviewsDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginVertical: Spacing.md,
+  },
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
