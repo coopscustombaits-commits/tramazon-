@@ -369,6 +369,50 @@ export type Follow = {
 };
 
 // ---------------------------------------------------------------------------
+// Articles — tips, how-tos, and YouTube videos
+//
+// One collection for both because they're the same thing to a reader: a piece
+// of content Coop published, with a title, a cover, and a body. A video just
+// has a `youtubeId` where an article has `body`. Splitting them would mean two
+// queries and two screens to render one "Tips & Videos" list.
+// ---------------------------------------------------------------------------
+
+export type ArticleKind = 'article' | 'video';
+
+/** `articles/{articleId}` — admin-authored. */
+export type Article = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  kind: ArticleKind;
+  title: string;
+  /** One or two lines for the list row. */
+  summary: string;
+  /** Plain text with blank-line paragraphs. Empty for videos. */
+  body: string;
+  /**
+   * The YouTube video id (`dQw4w9WgXcQ`), not a URL. Storing the id means the
+   * app decides how to present it — thumbnail, embed, or hand-off to the
+   * YouTube app — without re-parsing a link every time.
+   */
+  youtubeId: string | null;
+  /** Optional cover image. Videos fall back to the YouTube thumbnail. */
+  coverImageUrl: string | null;
+  coverStoragePath: string | null;
+  /** Free-text tags, e.g. ['bass', 'winter']. */
+  tags: string[];
+  authorId: string;
+  author: AuthorSnapshot;
+  /**
+   * Drafts are invisible to everyone but admins — the security rules enforce
+   * it, so an unpublished article can be written over several sittings without
+   * leaking.
+   */
+  published: boolean;
+  /** Set when first published. The list orders by it. */
+  publishedAt: Timestamp | null;
+};
+
+// ---------------------------------------------------------------------------
 // Reviews
 //
 // Two collections, because the brief separates them and so does the meaning:

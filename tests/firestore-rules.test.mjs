@@ -1239,3 +1239,98 @@ test('a banned account cannot review', async () => {
     ),
   );
 });
+
+// ---------------------------------------------------------------------------
+// Articles — tips and videos
+// ---------------------------------------------------------------------------
+
+function article(authorId, overrides = {}) {
+  return {
+    schemaVersion: 1,
+    kind: 'article',
+    title: 'Winter jigging',
+    summary: 'Slow it down.',
+    body: 'Drop it and wait.',
+    youtubeId: null,
+    coverImageUrl: null,
+    coverStoragePath: null,
+    tags: ['bass'],
+    authorId,
+    author: { uid: authorId, username: 'Coop', photoURL: null },
+    published: true,
+    publishedAt: new Date(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+test('only an admin can publish an article', async () => {
+  await assertFails(setDoc(doc(asAngler(), 'articles', 'sneaky'), article(ANGLER)));
+  await assertSucceeds(setDoc(doc(asOwner(), 'articles', 'winter'), article(OWNER)));
+});
+
+test('an admin cannot publish under someone else’s name', async () => {
+  await assertFails(setDoc(doc(asOwner(), 'articles', 'spoofed'), article(ANGLER)));
+});
+
+test('a draft is invisible to everyone but an admin', async () => {
+  await assertSucceeds(
+    setDoc(doc(asOwner(), 'articles', 'draft'), article(OWNER, {
+      published: false,
+      publishedAt: null,
+    })),
+  );
+  await assertFails(getDoc(doc(asAngler(), 'articles', 'draft')));
+  await assertSucceeds(getDoc(doc(asOwner(), 'articles', 'draft')));
+
+  // And the published list can't be widened into one that returns drafts.
+  await assertSucceeds(getDocs(query(
+    collection(asAngler(), 'articles'),
+    where('published', '==', true),
+    orderBy('publishedAt', 'desc'),
+    limit(50),
+  )));
+  await assertFails(getDocs(query(
+    collection(asAngler(), 'articles'),
+    orderBy('publishedAt', 'desc'),
+    limit(50),
+  )));
+  // The admin list, which deliberately returns drafts too.
+  await assertSucceeds(getDocs(query(
+    collection(asOwner(), 'articles'),
+    orderBy('updatedAt', 'desc'),
+    limit(100),
+  )));
+});
+
+test('a published article is readable by any signed-in user, not by guests', async () => {
+  await assertSucceeds(getDoc(doc(asAngler(), 'articles', 'winter')));
+  await assertFails(getDoc(doc(asGuest(), 'articles', 'winter')));
+});
+
+test('an article needs a title, and a body that fits', async () => {
+  await assertFails(
+    setDoc(doc(asOwner(), 'articles', 'untitled'), article(OWNER, { title: '' })),
+  );
+  await assertFails(
+    setDoc(doc(asOwner(), 'articles', 'huge'), article(OWNER, { body: 'x'.repeat(20001) })),
+  );
+  await assertFails(
+    setDoc(doc(asOwner(), 'articles', 'odd-kind'), article(OWNER, { kind: 'podcast' })),
+  );
+});
+
+test('only an admin can edit or delete an article', async () => {
+  await assertFails(updateDoc(doc(asAngler(), 'articles', 'winter'), { title: 'Hacked' }));
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'articles', 'winter'), {
+      title: 'Winter jigging, revised',
+      summary: 'Slow it down.',
+      body: 'Drop it and wait, then wait more.',
+      updatedAt: new Date(),
+    }),
+  );
+  await assertFails(deleteDoc(doc(asAngler(), 'articles', 'winter')));
+  await assertSucceeds(deleteDoc(doc(asOwner(), 'articles', 'winter')));
+});

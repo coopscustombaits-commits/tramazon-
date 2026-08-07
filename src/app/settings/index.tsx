@@ -96,6 +96,30 @@ export default function SettingsScreen() {
           <ThemePicker />
         </Card>
 
+        <SectionHeader title="Learn" />
+        <Card style={styles.card}>
+          <ListRow
+            label="Tips & videos"
+            description="How-tos from Coop, and his YouTube uploads"
+            icon="book-outline"
+            onPress={() => router.push('/learn')}
+          />
+          <Divider />
+          <ListRow
+            label="Bait reviews"
+            description="What the community says actually works"
+            icon="star-outline"
+            onPress={() => router.push('/baits')}
+          />
+          <Divider />
+          <ListRow
+            label="Species hubs"
+            description="Catches by fish"
+            icon="fish-outline"
+            onPress={() => router.push('/species')}
+          />
+        </Card>
+
         <SectionHeader title="Shop" />
         <Card style={styles.card}>
           <ListRow
@@ -129,6 +153,13 @@ export default function SettingsScreen() {
                 description="Content flagged by anglers"
                 icon="flag-outline"
                 onPress={() => router.push('/admin/reports')}
+              />
+              <Divider />
+              <ListRow
+                label="Tips & videos"
+                description="Write a tip or add a YouTube video"
+                icon="book-outline"
+                onPress={() => router.push('/admin/articles')}
               />
               <Divider />
               <ListRow

@@ -41,7 +41,7 @@ because a missing one of these is a rejection, not a feature gap.
 | Product reviews | New `productReviews` collection | **Built** |
 | Bait reviews | New `baitReviews` collection | **Built** |
 | Photo and video posts | — | **Done in Phase 1** |
-| YouTube integration | New `articles` collection | Ready |
+| YouTube integration | New `articles` collection | **Built** |
 
 **Follow / unfollow.** Add `follows/{followerId}_{followingId}` carrying both
 ids as fields. `followerCount` and `followingCount` already exist on the
@@ -139,9 +139,31 @@ Shopify. Bait names are slugged (`lib/slug.ts`) so "Chatterbait", "chatterbait"
 and "CHATTERBAIT" are one bait with three reviews rather than three baits with
 one each.
 
-**YouTube.** Store the video id, not an embed URL, in an `articles` collection
-alongside tips and sponsor content. Rendering is `expo-video` or a WebView; no
-change to any existing collection.
+**YouTube and written tips.** One `articles` collection for both, because
+they're the same thing to a reader: something Coop published, with a title, a
+cover, and a body. A video just carries a `youtubeId` where an article carries
+`body`. Splitting them would mean two queries and a merge to render one list in
+date order.
+
+We store **the video id, never a URL**. A link arrives in a dozen shapes
+(`youtu.be/ID`, `watch?v=ID&t=30&si=…`, `/shorts/ID`, `/embed/ID`) and every one
+has to become the same eleven characters before it's useful — so that happens
+once, where Coop pastes it, instead of on every render. `lib/youtube.ts` is
+pure and unit tested against all of those shapes including the tracking
+parameters the YouTube app puts on the clipboard.
+
+Playback is a WebView on the `youtube-nocookie.com` embed: inline, no YouTube
+SDK, and no tracking until the viewer actually presses play — which is what the
+privacy page promises. On the web export, where `react-native-webview` has
+nothing to render, the same component falls back to the thumbnail and hands off
+to YouTube.
+
+Drafts are the reason `published` exists as its own field rather than being
+inferred from `publishedAt`: the security rules hide an unpublished article
+from everyone but an admin, so Coop can write over several sittings without it
+leaking half-finished. `publishedAt` is stamped once, the first time it goes
+public, and never moved — re-publishing a correction shouldn't jump it back
+above things written since.
 
 ---
 
@@ -155,7 +177,7 @@ change to any existing collection.
 | Badges | New `badges` collection + `users/{uid}/badges` | Ready |
 | Points / rewards | `users.points` ★ | Ready |
 | Event calendar | New `events` collection | Ready |
-| Tips and articles | New `articles` collection | Ready |
+| Tips and articles | `articles` collection | **Built** |
 | Featured products | A Shopify collection named "Featured" | Ready, no schema |
 | Product-drop notifications | — | **Done in Phase 1** |
 

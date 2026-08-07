@@ -84,6 +84,21 @@
       ]
     },
     {
+      "comment": "Tips & videos: published articles, newest first.",
+      "collectionGroup": "articles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "published",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "comment": "Message inbox: your threads, most recent activity first.",
       "collectionGroup": "conversations",
       "queryScope": "COLLECTION",

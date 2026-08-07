@@ -35,6 +35,9 @@ export const paths = {
   announcements: 'announcements',
   announcement: (id: string) => `announcements/${id}`,
 
+  articles: 'articles',
+  article: (id: string) => `articles/${id}`,
+
   // Reviews. Both kinds share a shape, so the path builders take the same
   // arguments and `lib/db/reviews.ts` picks the root.
   reviewRoot: (kind: 'product' | 'bait') =>

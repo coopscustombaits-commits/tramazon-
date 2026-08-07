@@ -231,6 +231,31 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------------
+    // articles/{articleId} — tips, how-tos, and YouTube videos
+    //
+    // Admin-authored. Drafts are invisible to everyone but admins, so Coop can
+    // write something over several sittings without it leaking half-finished.
+    // ---------------------------------------------------------------------
+    match /articles/{articleId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.published == true);
+
+      allow create: if isAdmin()
+        && request.resource.data.authorId == request.auth.uid
+        && isValidString(request.resource.data.title, 120)
+        && request.resource.data.title.size() > 0
+        && isValidString(request.resource.data.summary, 300)
+        && isValidString(request.resource.data.body, 20000)
+        && request.resource.data.kind in ['article', 'video'];
+
+      allow update: if isAdmin()
+        && isValidString(request.resource.data.title, 120)
+        && isValidString(request.resource.data.summary, 300)
+        && isValidString(request.resource.data.body, 20000);
+
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------------
     // Reviews — productReviews/{handle} and baitReviews/{slug}
     //
     // Identical rules for both, so they're written once here and applied to

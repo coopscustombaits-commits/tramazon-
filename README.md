@@ -42,6 +42,7 @@ src/
     user/[uid].tsx        another angler's profile
     messages/             direct message inbox and threads
     baits/                community bait reviews
+    learn/                tips and YouTube videos
     search.tsx            search anglers and catches
     species/              per-species hubs
     notifications.tsx     in-app activity history
@@ -74,8 +75,8 @@ docs/ROADMAP.md           how Phases 2-4 fit the existing schema, and what
 
 ## Build status
 
-**Phase 1 is complete. Phase 2 is most of the way there. Phases 3 and 4 are
-mostly not built.**
+**Phases 1 and 2 are complete. Phase 3 is barely started, and Phase 4 has its
+enforcement but no dashboard.**
 
 Where a later phase isn't built it has at least been *designed for* —
 [`docs/ROADMAP.md`](docs/ROADMAP.md) audits every remaining item against the
@@ -85,8 +86,8 @@ restructuring. That is not the same as being built.
 | Phase | Built |
 | --- | --- |
 | **1 — Core app** | Everything |
-| **2 — Community** | 8 of 9 items |
-| **3 — Engagement** | 1 of 9 items |
+| **2 — Community** | Everything |
+| **3 — Engagement** | 2 of 9 items |
 | **4 — Admin dashboard & moderation** | Enforcement only, no dashboard |
 
 ---
@@ -117,9 +118,9 @@ restructuring. That is not the same as being built.
 | Dark mode toggle | Done |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done, covers all four phases |
-| Tests | 49 unit + 72 security rules, all in CI |
+| Tests | 56 unit + 78 security rules, all in CI |
 
-### Phase 2 — Community · 8 of 9
+### Phase 2 — Community · complete
 
 | Feature | State |
 | --- | --- |
@@ -131,9 +132,9 @@ restructuring. That is not the same as being built.
 | Private messaging | **Done** — one-to-one, blocking enforced in the rules |
 | Product reviews | **Done** — with a server-verified purchase badge |
 | Bait reviews | **Done** — community reviews of any bait |
-| YouTube integration | Not built |
+| YouTube integration | **Done** — inline player, id stored not a URL |
 
-### Phase 3 — Engagement · 1 of 9
+### Phase 3 — Engagement · 2 of 9
 
 | Feature | State |
 | --- | --- |
@@ -144,7 +145,7 @@ restructuring. That is not the same as being built.
 | Badges and achievements | Not built |
 | Points / rewards | Not built — `users.points` is ready |
 | Event calendar | Not built |
-| Fishing tips and articles | Not built |
+| Fishing tips and articles | **Done** — shares the articles collection |
 | Featured products on home | Not built |
 
 ### Phase 4 — Admin dashboard & moderation · enforcement only
@@ -163,7 +164,7 @@ sit on top of, which is the part that has to be right first.
 | Manage users (edit, delete) | Not built |
 | Segmented push | Not built |
 | Manage tournaments, challenges, badges | Not built |
-| Add / edit articles | Not built |
+| Add / edit articles | **Done** — admin editor with drafts |
 | Remote config | Not built |
 | **User reporting** | **Done** — report posts, comments, and anglers |
 | **User blocking** | **Done** — block list, feed and comments filtered |
