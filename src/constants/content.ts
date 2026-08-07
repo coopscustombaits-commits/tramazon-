@@ -23,3 +23,21 @@ export const CONTACT_CONTENT = {
   facebook: '',
   website: '',
 } as const;
+
+export const PRIVACY_CONTENT = {
+  // TODO(coop): both stores require a publicly reachable privacy policy URL
+  // before an app can be submitted. Put the real one here.
+  policyUrl: '',
+  /** Plain-language summary shown in the app. The URL above is the legal one. */
+  collected: [
+    'Your email address, so you can sign in and reset your password.',
+    'Your username, bio, profile photo, and favorite species — whatever you choose to put on your profile.',
+    'Photos and videos you post, along with their captions.',
+    'A device token, so we can send you notifications. Turning notifications off removes it.',
+  ],
+  shared: [
+    'Nothing is sold, ever.',
+    'Orders go through Shopify, who handle payment and shipping under their own privacy policy.',
+    'Notifications are delivered through Expo, Apple, and Google.',
+  ],
+} as const;

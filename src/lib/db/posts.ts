@@ -21,10 +21,11 @@ import {
 
 import { paths, storagePaths } from '@/lib/db/paths';
 import { db } from '@/lib/firebase';
-import { deleteImage, imageFileName, uploadImage } from '@/lib/storage/images';
+import { deleteFile, mediaFileName, uploadFile } from '@/lib/storage/media';
 import {
   SCHEMA_VERSION,
   type AuthorSnapshot,
+  type MediaKind,
   type Post,
   type PostComment,
   type UserProfile,
@@ -60,28 +61,48 @@ function authorSnapshot(profile: UserProfile): AuthorSnapshot {
 export type CreatePostInput = {
   profile: UserProfile;
   /** Local file URI from expo-image-picker. */
-  imageUri: string;
-  imageWidth: number;
-  imageHeight: number;
+  uri: string;
+  kind: MediaKind;
+  width: number;
+  height: number;
+  /** Videos only. */
+  durationMs?: number | null;
+  /** Videos only: local URI of a generated poster frame. */
+  thumbnailUri?: string | null;
   caption: string;
   species?: string | null;
 };
 
 /**
- * Upload the photo, then write the post as `pending`.
+ * Upload the media, then write the post as `pending`.
  *
- * The photo goes up first because the security rules require the post document
+ * The file goes up first because the security rules require the post document
  * to already carry a storage path — and because an upload that fails halfway
- * should not leave a post with a broken image. If the document write fails, we
- * clean the orphaned upload back out.
+ * should not leave a post pointing at nothing. If the document write fails, we
+ * clean the orphaned uploads back out.
  */
 export async function createPost(input: CreatePostInput): Promise<string> {
-  const { profile, imageUri, caption } = input;
+  const { profile, uri, kind, caption } = input;
 
-  const uploaded = await uploadImage(
-    imageUri,
-    storagePaths.postImage(profile.uid, imageFileName(imageUri, 'catch')),
+  const uploaded = await uploadFile(
+    uri,
+    storagePaths.postMedia(profile.uid, mediaFileName(uri, kind === 'video' ? 'clip' : 'catch')),
   );
+
+  // Videos need a poster frame, or the feed shows a black rectangle until the
+  // first frame decodes.
+  let thumbnail: { url: string; storagePath: string } | null = null;
+  if (kind === 'video' && input.thumbnailUri) {
+    try {
+      thumbnail = await uploadFile(
+        input.thumbnailUri,
+        storagePaths.postMedia(profile.uid, mediaFileName(input.thumbnailUri, 'poster')),
+      );
+    } catch (error) {
+      // A missing poster is a cosmetic problem, not a reason to lose the post.
+      console.warn('[posts] could not upload video poster', error);
+    }
+  }
 
   try {
     const reference = await addDoc(collection(db, paths.posts), {
@@ -89,11 +110,15 @@ export async function createPost(input: CreatePostInput): Promise<string> {
       authorId: profile.uid,
       author: authorSnapshot(profile),
       caption: caption.trim().slice(0, CAPTION_MAX),
-      image: {
+      media: {
+        kind,
         url: uploaded.url,
         storagePath: uploaded.storagePath,
-        width: input.imageWidth,
-        height: input.imageHeight,
+        width: input.width,
+        height: input.height,
+        durationMs: input.durationMs ?? null,
+        thumbnailUrl: thumbnail?.url ?? null,
+        thumbnailStoragePath: thumbnail?.storagePath ?? null,
       },
       status: 'pending',
       publishedAt: null,
@@ -109,7 +134,8 @@ export async function createPost(input: CreatePostInput): Promise<string> {
     });
     return reference.id;
   } catch (error) {
-    await deleteImage(uploaded.storagePath);
+    await deleteFile(uploaded.storagePath);
+    if (thumbnail) await deleteFile(thumbnail.storagePath);
     throw error;
   }
 }
@@ -244,9 +270,12 @@ export async function rejectPost(
  * Likes and comments underneath it are cleaned up by a Cloud Function —
  * subcollections can't be deleted in one client operation.
  */
-export async function deletePost(post: Pick<Post, 'id' | 'image'>): Promise<void> {
+export async function deletePost(post: Pick<Post, 'id' | 'media'>): Promise<void> {
   await deleteDoc(doc(db, paths.post(post.id)));
-  await deleteImage(post.image.storagePath);
+  await deleteFile(post.media.storagePath);
+  if (post.media.thumbnailStoragePath) {
+    await deleteFile(post.media.thumbnailStoragePath);
+  }
 }
 
 // ---------------------------------------------------------------------------

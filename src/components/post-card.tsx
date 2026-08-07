@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
+import { PostMediaView } from '@/components/post-media';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/card';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
@@ -54,9 +54,25 @@ export function PostCard({
     }
   }
 
+  async function sharePost() {
+    try {
+      // A URL in the message is what makes the share useful in Messages or
+      // Facebook; the deep link opens the post for anyone who has the app.
+      await Share.share({
+        message: `${post.author.username}'s catch on Coop's Custom Baits${
+          post.caption ? `: ${post.caption}` : ''
+        }`,
+        url: post.media.url,
+      });
+    } catch (error) {
+      // The user dismissing the sheet is not an error worth reporting.
+      if (error instanceof Error && !/dismiss/i.test(error.message)) {
+        Alert.alert('Could not share', error.message);
+      }
+    }
+  }
+
   const likeCount = Math.max(0, post.likeCount + pendingDelta);
-  const aspectRatio =
-    post.image.width && post.image.height ? post.image.width / post.image.height : 1;
 
   return (
     <View style={styles.card}>
@@ -84,15 +100,15 @@ export function PostCard({
         ) : null}
       </View>
 
-      <Pressable onPress={onPress} disabled={!onPress}>
-        <Image
-          source={{ uri: post.image.url }}
-          style={[styles.image, { aspectRatio: Math.min(Math.max(aspectRatio, 0.6), 1.6) }]}
-          contentFit="cover"
-          transition={200}
-          accessibilityIgnoresInvertColors
-        />
-      </Pressable>
+      {post.media.kind === 'video' ? (
+        // Don't wrap a video in a Pressable — the tap has to reach the play
+        // button rather than opening the detail screen.
+        <PostMediaView media={post.media} />
+      ) : (
+        <Pressable onPress={onPress} disabled={!onPress}>
+          <PostMediaView media={post.media} />
+        </Pressable>
+      )}
 
       {post.caption ? (
         <Text style={styles.caption} numberOfLines={onPress ? 3 : undefined}>
@@ -125,6 +141,15 @@ export function PostCard({
             style={styles.action}>
             <Ionicons name="chatbubble-outline" size={20} color={Colors.textMuted} />
             <Text style={styles.actionLabel}>{plural(post.commentCount, 'comment')}</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Share"
+            onPress={sharePost}
+            hitSlop={8}
+            style={[styles.action, styles.shareAction]}>
+            <Ionicons name="share-outline" size={20} color={Colors.textMuted} />
           </Pressable>
         </View>
       ) : null}
@@ -162,10 +187,6 @@ const styles = StyleSheet.create({
   timestamp: {
     ...Typography.caption,
   },
-  image: {
-    width: '100%',
-    backgroundColor: Colors.surfaceMuted,
-  },
   caption: {
     ...Typography.body,
     paddingHorizontal: Spacing.md,
@@ -184,5 +205,8 @@ const styles = StyleSheet.create({
   actionLabel: {
     ...Typography.caption,
     fontWeight: '600',
+  },
+  shareAction: {
+    marginLeft: 'auto',
   },
 });

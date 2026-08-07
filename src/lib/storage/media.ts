@@ -12,22 +12,23 @@ import { storage } from '@/lib/firebase';
  * Upload a local file (an `ImagePicker` URI) to Cloud Storage.
  *
  * React Native has no `File`, so we go through `fetch` to get a Blob. This is
- * the supported path for the Firebase JS SDK on RN.
+ * the supported path for the Firebase JS SDK on RN, and it works for video as
+ * well as stills.
  */
-export async function uploadImage(
+export async function uploadFile(
   localUri: string,
   storagePath: string,
   metadata?: UploadMetadata,
 ): Promise<{ url: string; storagePath: string }> {
   const response = await fetch(localUri);
   if (!response.ok) {
-    throw new Error('Could not read the selected image.');
+    throw new Error('Could not read the selected file.');
   }
   const blob = await response.blob();
 
   const objectRef = ref(storage, storagePath);
   await uploadBytes(objectRef, blob, {
-    contentType: blob.type || 'image/jpeg',
+    contentType: blob.type || 'application/octet-stream',
     ...metadata,
   });
 
@@ -35,7 +36,7 @@ export async function uploadImage(
 }
 
 /** Best-effort delete; a missing object is not an error worth surfacing. */
-export async function deleteImage(storagePath: string): Promise<void> {
+export async function deleteFile(storagePath: string): Promise<void> {
   try {
     await deleteObject(ref(storage, storagePath));
   } catch {
@@ -44,7 +45,7 @@ export async function deleteImage(storagePath: string): Promise<void> {
 }
 
 /** Unique-enough file name that keeps the original extension. */
-export function imageFileName(localUri: string, prefix = 'img'): string {
+export function mediaFileName(localUri: string, prefix = 'media'): string {
   const match = /\.([a-zA-Z0-9]+)(?:\?.*)?$/.exec(localUri);
   const extension = (match?.[1] ?? 'jpg').toLowerCase();
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;

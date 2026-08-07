@@ -9,6 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/button';
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
+import { useAuth } from '@/lib/auth/auth-context';
+import { recordCheckout } from '@/lib/db/orders';
 import { ShopifyError, formatMoney } from '@/lib/shopify/client';
 import { useCart } from '@/lib/shopify/cart-context';
 import type { CartLine } from '@/lib/shopify/types';
@@ -24,12 +26,22 @@ import type { CartLine } from '@/lib/shopify/types';
 export default function CartScreen() {
   const router = useRouter();
   const { cart, loading, busy, setQuantity, removeItem, refresh } = useCart();
+  const { user } = useAuth();
   const [checkingOut, setCheckingOut] = useState(false);
 
   async function checkout() {
     if (!cart) return;
     setCheckingOut(true);
     try {
+      // Record the order before opening checkout, not after. Plenty of people
+      // complete a purchase and never come back to the app, and their order
+      // still has to appear in their history.
+      if (user) {
+        await recordCheckout(user.uid, cart).catch((error: unknown) =>
+          console.warn('[cart] could not record the order', error),
+        );
+      }
+
       await WebBrowser.openBrowserAsync(cart.checkoutUrl, {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
         dismissButtonStyle: 'close',

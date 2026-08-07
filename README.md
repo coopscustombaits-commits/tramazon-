@@ -37,6 +37,8 @@ src/
     settings/             settings, edit profile, about, contact
     admin/                admin-only review queue
     post/[id].tsx         a catch, its likes and comments
+    wishlist.tsx          saved products
+    orders.tsx            order history and status
     user/[uid].tsx        another angler's profile
     notifications.tsx     in-app activity history
     product/[handle].tsx  a product
@@ -65,9 +67,15 @@ docs/DATA-MODEL.md        why the database is shaped this way
 
 ## Phase 1 status
 
-Everything Coop asked for in Phase 1 is built. Three items need credentials
-that only he can create — the app degrades cleanly without them (social
-sign-in buttons hide themselves, the Shop tab says "coming soon").
+One item is outstanding — the **dark mode toggle**. It isn't a toggle so much
+as a theming pass: colors are currently baked into each screen's stylesheet at
+module load, so making them switchable means routing every screen through a
+theme hook. That's a mechanical change across about thirty files, and it's next.
+
+Everything else is built. Several items need credentials that only Coop can
+create — the app degrades cleanly without them (social sign-in buttons hide
+themselves, the Shop tab says "coming soon", orders read "Order placed" until
+the Shopify webhook is wired up).
 
 
 | Feature | State |
@@ -80,14 +88,20 @@ sign-in buttons hide themselves, the Shop tab says "coming soon").
 | Edit profile | Done |
 | Settings, About, Contact | Done — awaiting real copy |
 | Log out / delete account | Done |
-| Firestore schema + security rules | Done (covers all of Phase 1), 26 rules tests |
+| Firestore schema + security rules | Done (covers all of Phase 1), 30 rules tests |
 | Tests | 26 unit + 26 security rules, all in CI |
-| Home feed (photo + caption posts, likes, comments) | Done |
+| Home feed (photo/video posts, species tag, likes, comments, share) | Done |
 | Pending → approve/reject review workflow | Done |
 | Admin review queue | Done |
 | Push notifications (review alerts, approval alerts) | Done — deploy functions, `docs/SETUP.md` §7 |
-| Shopify store (products, cart, checkout) | Done — needs credentials from `docs/SETUP.md` §8 |
+| Shopify store (products, categories, search, cart, checkout) | Done — needs credentials from `docs/SETUP.md` §8 |
+| Wishlist | Done |
+| Order history | Done — live status needs the webhook in `docs/SETUP.md` §9 |
+| Announcements to all users | Done |
+| Privacy & account management | Done — awaiting a policy URL |
+| Dark mode toggle | **Not done** — see below |
 | In-app activity feed + notification preferences | Done |
+| Basic stats (posts, fish logged) | Done — fish logged is a placeholder until the catch log lands |
 | Public angler profiles | Done |
 
 Every push runs typecheck, lint, unit tests, an iOS/Android/web bundle, the

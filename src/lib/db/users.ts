@@ -76,6 +76,7 @@ export async function createUserProfile(
     photoURL: user.photoURL ?? null,
     favoriteSpecies: input.favoriteSpecies?.trim() || null,
     postCount: 0,
+    fishLoggedCount: 0,
     followerCount: 0,
     followingCount: 0,
     providers: user.providerData.map((p) => p.providerId),

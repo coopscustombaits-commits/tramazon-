@@ -12,10 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Ionicons } from '@expo/vector-icons';
+
 import { Button } from '@/components/ui/button';
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { ShopifyError, formatMoney } from '@/lib/shopify/client';
+import { useAuth } from '@/lib/auth/auth-context';
+import { addToWishlist, removeFromWishlist, subscribeToWishlist } from '@/lib/db/wishlist';
 import { useCart } from '@/lib/shopify/cart-context';
 import {
   defaultSelection,
@@ -31,11 +35,37 @@ export default function ProductScreen() {
   const { handle } = useLocalSearchParams<{ handle: string }>();
   const router = useRouter();
   const { addItem, busy, itemCount } = useCart();
+  const { user } = useAuth();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Record<string, string>>({});
+  const [saved, setSaved] = useState(false);
+
+  // Wishlist state for this product, live so the heart matches other screens.
+  useEffect(() => {
+    if (!user || !product) return;
+    return subscribeToWishlist(user.uid, (items) =>
+      setSaved(items.some((item) => item.productId === product.id)),
+    );
+  }, [user, product]);
+
+  async function toggleSaved() {
+    if (!user || !product) return;
+    const next = !saved;
+    setSaved(next);
+    try {
+      if (next) {
+        await addToWishlist(user.uid, product);
+      } else {
+        await removeFromWishlist(user.uid, product.id);
+      }
+    } catch (error) {
+      setSaved(!next);
+      console.warn('[product] wishlist toggle failed', error);
+    }
+  }
 
   useEffect(() => {
     if (!handle) return;
@@ -108,13 +138,27 @@ export default function ProductScreen() {
         options={{
           title: product.title,
           headerRight: () => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Cart, ${itemCount} items`}
-              hitSlop={8}
-              onPress={() => router.push('/cart')}>
-              <Text style={styles.cartLink}>Cart{itemCount > 0 ? ` (${itemCount})` : ''}</Text>
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={saved ? 'Remove from wishlist' : 'Save to wishlist'}
+                accessibilityState={{ selected: saved }}
+                hitSlop={8}
+                onPress={toggleSaved}>
+                <Ionicons
+                  name={saved ? 'heart' : 'heart-outline'}
+                  size={22}
+                  color={saved ? Colors.danger : Colors.primary}
+                />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Cart, ${itemCount} items`}
+                hitSlop={8}
+                onPress={() => router.push('/cart')}>
+                <Text style={styles.cartLink}>Cart{itemCount > 0 ? ` (${itemCount})` : ''}</Text>
+              </Pressable>
+            </View>
           ),
         }}
       />
@@ -212,6 +256,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.lg,
   },
   cartLink: {
     ...Typography.body,

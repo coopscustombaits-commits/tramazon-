@@ -48,6 +48,12 @@ export type UserProfile = Timestamps & {
 
   // Denormalized counters, maintained server-side.
   postCount: number;
+  /**
+   * Catches logged. Distinct from `postCount` — a later phase adds a catch log
+   * where an angler records a fish without posting it publicly. Server-written
+   * and zero for now, so the stat is real the day that lands.
+   */
+  fishLoggedCount: number;
   /** Reserved for the follow feature in a later phase. Always 0 for now. */
   followerCount: number;
   followingCount: number;
@@ -105,13 +111,20 @@ export type AuthorSnapshot = {
   photoURL: string | null;
 };
 
-export type PostImage = {
+export type MediaKind = 'photo' | 'video';
+
+export type PostMedia = {
+  kind: MediaKind;
   /** Public download URL. */
   url: string;
   /** Storage path, kept so the file can be deleted with the post. */
   storagePath: string;
   width: number;
   height: number;
+  /** Videos only: length in milliseconds, and a poster frame. */
+  durationMs: number | null;
+  thumbnailUrl: string | null;
+  thumbnailStoragePath: string | null;
 };
 
 /** `posts/{postId}` */
@@ -121,7 +134,7 @@ export type Post = Timestamps & {
   authorId: string;
   author: AuthorSnapshot;
   caption: string;
-  image: PostImage;
+  media: PostMedia;
 
   status: PostStatus;
   /** Set when an admin approves. Feed orders by this. Null until approved. */
@@ -159,6 +172,75 @@ export type PostComment = Timestamps & {
 };
 
 // ---------------------------------------------------------------------------
+// Shop: wishlist and orders
+// ---------------------------------------------------------------------------
+
+/**
+ * `users/{uid}/wishlist/{productId}` — document id is the Shopify product id
+ * with the `gid://` prefix stripped, so saving twice is idempotent.
+ *
+ * A snapshot of title/price/image is stored so the wishlist renders instantly
+ * and still shows something if a product is later unpublished. Live price and
+ * availability are re-read from Shopify when the screen opens.
+ */
+export type WishlistItem = Timestamps & {
+  schemaVersion: number;
+  /** Shopify product id, full `gid://shopify/Product/123` form. */
+  productId: string;
+  handle: string;
+  title: string;
+  imageUrl: string | null;
+  /** Price at the time it was saved, for display before Shopify responds. */
+  priceAmount: string;
+  priceCurrency: string;
+};
+
+export type OrderStatus =
+  | 'placed'
+  | 'paid'
+  | 'fulfilled'
+  | 'partially_fulfilled'
+  | 'cancelled'
+  | 'refunded'
+  | 'unknown';
+
+/**
+ * `users/{uid}/orders/{orderId}` — the app's record of a checkout.
+ *
+ * Written by the client the moment checkout is opened, so there's a record
+ * even if the customer never comes back to the app. Shopify is the source of
+ * truth for status: a Cloud Function subscribed to Shopify's order webhooks
+ * fills in `status`, `orderNumber`, and `statusUrl` once the order exists.
+ * See docs/SETUP.md.
+ */
+export type Order = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  /** The Shopify cart this came from — how a webhook matches it back to us. */
+  cartId: string;
+  /** Shopify's order id, once the webhook has told us. */
+  shopifyOrderId: string | null;
+  /** Human-facing number, e.g. "#1042". */
+  orderNumber: string | null;
+  status: OrderStatus;
+  /** Shopify's hosted order-status page. */
+  statusUrl: string | null;
+  totalAmount: string;
+  totalCurrency: string;
+  /** Enough to render the order without calling Shopify. */
+  lines: {
+    title: string;
+    variantTitle: string | null;
+    quantity: number;
+    imageUrl: string | null;
+  }[];
+  /** Set when the webhook reports fulfillment, for a "shipped" line. */
+  fulfilledAt: Timestamp | null;
+  trackingNumbers: string[];
+  trackingUrls: string[];
+};
+
+// ---------------------------------------------------------------------------
 // Notifications (in-app history; the push itself is sent by Cloud Functions)
 // ---------------------------------------------------------------------------
 
@@ -173,6 +255,23 @@ export type NotificationType =
   | 'new_message'
   | 'badge_earned'
   | 'announcement';
+
+/**
+ * `announcements/{announcementId}` — an admin-authored message pushed to
+ * everyone. Creating one is what triggers the fan-out Cloud Function.
+ */
+export type Announcement = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  title: string;
+  body: string;
+  /** Optional deep link, e.g. `/product/deep-diver`. */
+  href: string | null;
+  createdBy: string;
+  /** Set by the Cloud Function once the push has gone out. */
+  sentAt: Timestamp | null;
+  recipientCount: number;
+};
 
 /** `users/{uid}/notifications/{id}` */
 export type AppNotification = Timestamps & {

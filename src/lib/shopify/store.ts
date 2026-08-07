@@ -1,5 +1,7 @@
 import { ShopifyError, storefront } from '@/lib/shopify/client';
 import {
+  COLLECTION_PRODUCTS_QUERY,
+  COLLECTIONS_QUERY,
   CART_CREATE_MUTATION,
   CART_LINES_ADD_MUTATION,
   CART_LINES_REMOVE_MUTATION,
@@ -11,6 +13,7 @@ import {
 import type {
   Cart,
   CartLine,
+  Collection,
   Product,
   ProductSummary,
   ProductVariant,
@@ -40,6 +43,11 @@ export type ProductPage = {
   hasMore: boolean;
 };
 
+/**
+ * A page of products. `search` uses Shopify's own search syntax, so a bare
+ * word matches title, product type, tag, and vendor — which is what a shopper
+ * typing "jig" expects.
+ */
 export async function fetchProducts(
   cursor: string | null = null,
   search?: string,
@@ -58,6 +66,42 @@ export async function fetchProducts(
     products: nodes(data.products),
     cursor: data.products.pageInfo.endCursor,
     hasMore: data.products.pageInfo.hasNextPage,
+  };
+}
+
+/** The store's collections — categories, in shopper language. */
+export async function fetchCollections(): Promise<Collection[]> {
+  const data = await storefront<{ collections: Edges<Collection> }>(COLLECTIONS_QUERY, {
+    first: 25,
+  });
+  return nodes(data.collections);
+}
+
+export async function fetchCollectionProducts(
+  handle: string,
+  cursor: string | null = null,
+): Promise<ProductPage> {
+  const data = await storefront<{
+    collection: {
+      products: Edges<ProductSummary> & {
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+      };
+    } | null;
+  }>(COLLECTION_PRODUCTS_QUERY, {
+    handle,
+    first: PRODUCTS_PAGE_SIZE,
+    after: cursor,
+  });
+
+  if (!data.collection) {
+    // The collection was renamed or unpublished; an empty shelf beats an error.
+    return { products: [], cursor: null, hasMore: false };
+  }
+
+  return {
+    products: nodes(data.collection.products),
+    cursor: data.collection.products.pageInfo.endCursor,
+    hasMore: data.collection.products.pageInfo.hasNextPage,
   };
 }
 

@@ -8,7 +8,7 @@ import {
   onDocumentUpdated,
 } from 'firebase-functions/v2/firestore';
 
-import { adminUids, notifyUser } from './push';
+import { adminUids, notifyUser, sendPush, tokensForUser, wantsNotification } from './push';
 
 /**
  * Cloud Functions for Coop's Custom Baits.
@@ -123,16 +123,18 @@ export const onPostDeleted = onDocumentDeleted('posts/{postId}', async (event) =
       .catch(() => undefined);
   }
 
+  // A video post has two files: the clip and its poster frame.
+  const storagePaths: string[] = [
+    post.media?.storagePath,
+    post.media?.thumbnailStoragePath,
+  ].filter((path): path is string => typeof path === 'string');
+
   await Promise.all([
     deleteCollection(`posts/${postId}/likes`),
     deleteCollection(`posts/${postId}/comments`),
-    post.image?.storagePath
-      ? getStorage()
-          .bucket()
-          .file(post.image.storagePath)
-          .delete()
-          .catch(() => undefined)
-      : Promise.resolve(),
+    ...storagePaths.map((path) =>
+      getStorage().bucket().file(path).delete().catch(() => undefined),
+    ),
   ]);
 });
 
@@ -217,6 +219,72 @@ export const onCommentDeleted = onDocumentDeleted(
 );
 
 // ---------------------------------------------------------------------------
+// Announcements
+// ---------------------------------------------------------------------------
+
+/**
+ * An admin published an announcement — push it to everyone who hasn't opted
+ * out, and record it in each person's activity list.
+ *
+ * This walks every user, which is fine at this scale (a few thousand at most).
+ * If the crew ever outgrows that, the loop becomes a paginated task queue
+ * without changing anything the app sees.
+ */
+export const onAnnouncementCreated = onDocumentCreated(
+  'announcements/{announcementId}',
+  async (event) => {
+    const announcement = event.data?.data();
+    if (!announcement || announcement.sentAt) return;
+
+    const { announcementId } = event.params;
+    const users = await db().collection('users').select().get();
+
+    let recipients = 0;
+
+    // Batched so one enormous Promise.all doesn't exhaust the instance.
+    for (let index = 0; index < users.docs.length; index += 50) {
+      const batch = users.docs.slice(index, index + 50);
+      const results = await Promise.all(
+        batch.map(async (user): Promise<number> => {
+          if (!(await wantsNotification(user.id, 'announcements'))) return 0;
+          const tokens = await tokensForUser(user.id);
+
+          await db().collection(`users/${user.id}/notifications`).add({
+            schemaVersion: 1,
+            type: 'announcement',
+            title: announcement.title,
+            body: announcement.body,
+            href: announcement.href ?? null,
+            readAt: null,
+            data: { announcementId },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+
+          if (tokens.length === 0) return 0;
+          await sendPush(tokens, {
+            title: announcement.title,
+            body: announcement.body,
+            data: {
+              announcementId,
+              ...(announcement.href ? { href: announcement.href } : {}),
+            },
+          });
+          return 1;
+        }),
+      );
+      recipients += results.reduce((total, sent) => total + sent, 0);
+    }
+
+    await db()
+      .doc(`announcements/${announcementId}`)
+      .update({ sentAt: new Date(), recipientCount: recipients, updatedAt: new Date() });
+
+    logger.info('Announcement sent', { announcementId, recipients });
+  },
+);
+
+// ---------------------------------------------------------------------------
 // Profile changes and account deletion
 // ---------------------------------------------------------------------------
 
@@ -272,6 +340,9 @@ export const onUserDeleted = onDocumentDeleted('users/{uid}', async (event) => {
     deleteCollection(`users/${uid}/pushTokens`),
     deleteCollection(`users/${uid}/notifications`),
     deleteCollection(`users/${uid}/private`),
+    deleteCollection(`users/${uid}/wishlist`),
+    // Orders are kept deliberately — Shopify holds the real records for tax
+    // and dispute purposes, and deleting our copy wouldn't remove those.
   ]);
 
   logger.info('Cleaned up deleted account', { uid, posts: posts.size });

@@ -88,6 +88,23 @@ export default function SettingsScreen() {
           />
         </Card>
 
+        <SectionHeader title="Shop" />
+        <Card style={styles.card}>
+          <ListRow
+            label="Your orders"
+            description="Order status and tracking"
+            icon="cube-outline"
+            onPress={() => router.push('/orders')}
+          />
+          <Divider />
+          <ListRow
+            label="Wishlist"
+            description="Baits you've saved"
+            icon="heart-outline"
+            onPress={() => router.push('/wishlist')}
+          />
+        </Card>
+
         {isAdmin ? (
           <>
             <SectionHeader title="Admin" />
@@ -97,6 +114,13 @@ export default function SettingsScreen() {
                 description="Approve or reject pending posts"
                 icon="shield-checkmark-outline"
                 onPress={() => router.push('/admin/review')}
+              />
+              <Divider />
+              <ListRow
+                label="Send an announcement"
+                description="Push a message to everyone"
+                icon="megaphone-outline"
+                onPress={() => router.push('/admin/announce')}
               />
             </Card>
           </>
@@ -114,6 +138,12 @@ export default function SettingsScreen() {
             label="Contact & support"
             icon="chatbubble-ellipses-outline"
             onPress={() => router.push('/settings/contact')}
+          />
+          <Divider />
+          <ListRow
+            label="Privacy & your data"
+            icon="lock-closed-outline"
+            onPress={() => router.push('/settings/privacy')}
           />
         </Card>
 

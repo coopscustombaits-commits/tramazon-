@@ -9,12 +9,20 @@ export const paths = {
   userPushTokens: (uid: string) => `users/${uid}/pushTokens`,
   userPushToken: (uid: string, token: string) => `users/${uid}/pushTokens/${token}`,
   userNotifications: (uid: string) => `users/${uid}/notifications`,
+  userWishlist: (uid: string) => `users/${uid}/wishlist`,
+  userWishlistItem: (uid: string, productId: string) =>
+    `users/${uid}/wishlist/${productId}`,
+  userOrders: (uid: string) => `users/${uid}/orders`,
+  userOrder: (uid: string, orderId: string) => `users/${uid}/orders/${orderId}`,
 
   usernames: 'usernames',
   username: (usernameLower: string) => `usernames/${usernameLower}`,
 
   admins: 'admins',
   admin: (uid: string) => `admins/${uid}`,
+
+  announcements: 'announcements',
+  announcement: (id: string) => `announcements/${id}`,
 
   posts: 'posts',
   post: (postId: string) => `posts/${postId}`,
@@ -28,5 +36,5 @@ export const paths = {
 /** Cloud Storage object paths. */
 export const storagePaths = {
   avatar: (uid: string, fileName: string) => `avatars/${uid}/${fileName}`,
-  postImage: (uid: string, fileName: string) => `posts/${uid}/${fileName}`,
+  postMedia: (uid: string, fileName: string) => `posts/${uid}/${fileName}`,
 } as const;

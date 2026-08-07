@@ -45,6 +45,7 @@ function profile(uid, username) {
     photoURL: null,
     favoriteSpecies: null,
     postCount: 0,
+    fishLoggedCount: 0,
     followerCount: 0,
     followingCount: 0,
     providers: ['password'],
@@ -59,7 +60,16 @@ function post(authorId, overrides = {}) {
     authorId,
     author: { uid: authorId, username: 'angler', photoURL: null },
     caption: 'Nice one',
-    image: { url: 'https://x/y.jpg', storagePath: 'posts/a/b.jpg', width: 100, height: 100 },
+    media: {
+      kind: 'photo',
+      url: 'https://x/y.jpg',
+      storagePath: 'posts/a/b.jpg',
+      width: 100,
+      height: 100,
+      durationMs: null,
+      thumbnailUrl: null,
+      thumbnailStoragePath: null,
+    },
     status: 'pending',
     publishedAt: null,
     reviewedAt: null,
@@ -407,6 +417,103 @@ test('notification preferences are writable only by their owner', async () => {
   await assertFails(
     updateDoc(doc(asOther(), 'users', ANGLER, 'private', 'profile'), {
       'notificationPrefs.postLiked': false,
+    }),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Wishlist, orders, announcements
+// ---------------------------------------------------------------------------
+
+test('a wishlist is private to its owner', async () => {
+  const item = {
+    schemaVersion: 1,
+    productId: 'gid://shopify/Product/1',
+    handle: 'jig',
+    title: 'Skirted Jig',
+    imageUrl: null,
+    priceAmount: '10.00',
+    priceCurrency: 'USD',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  await assertSucceeds(setDoc(doc(asAngler(), 'users', ANGLER, 'wishlist', '1'), item));
+  await assertFails(setDoc(doc(asOther(), 'users', ANGLER, 'wishlist', '2'), item));
+  await assertFails(getDoc(doc(asOther(), 'users', ANGLER, 'wishlist', '1')));
+  await assertSucceeds(deleteDoc(doc(asAngler(), 'users', ANGLER, 'wishlist', '1')));
+});
+
+test('an order can be recorded but never marked shipped by the client', async () => {
+  const order = {
+    schemaVersion: 1,
+    cartId: 'gid://shopify/Cart/abc',
+    shopifyOrderId: null,
+    orderNumber: null,
+    status: 'placed',
+    statusUrl: null,
+    totalAmount: '25.00',
+    totalCurrency: 'USD',
+    lines: [],
+    fulfilledAt: null,
+    trackingNumbers: [],
+    trackingUrls: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  await assertSucceeds(setDoc(doc(asAngler(), 'users', ANGLER, 'orders', 'o1'), order));
+
+  // Claiming your order already shipped would make the whole screen a lie.
+  await assertFails(
+    setDoc(doc(asAngler(), 'users', ANGLER, 'orders', 'o2'), {
+      ...order,
+      status: 'fulfilled',
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(asAngler(), 'users', ANGLER, 'orders', 'o1'), { status: 'fulfilled' }),
+  );
+  await assertFails(getDoc(doc(asOther(), 'users', ANGLER, 'orders', 'o1')));
+});
+
+test('only an admin can publish an announcement', async () => {
+  const announcement = {
+    schemaVersion: 1,
+    title: 'New bait drop',
+    body: 'Chartreuse Shad is back.',
+    href: null,
+    sentAt: null,
+    recipientCount: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  await assertFails(
+    setDoc(doc(asAngler(), 'announcements', 'a1'), { ...announcement, createdBy: ANGLER }),
+  );
+  await assertSucceeds(
+    setDoc(doc(asOwner(), 'announcements', 'a1'), { ...announcement, createdBy: OWNER }),
+  );
+
+  // Everyone can read them; nobody can edit one after it has gone out.
+  await assertSucceeds(getDoc(doc(asAngler(), 'announcements', 'a1')));
+  await assertFails(updateDoc(doc(asOwner(), 'announcements', 'a1'), { title: 'Edited' }));
+});
+
+test('an announcement cannot be created pre-marked as sent', async () => {
+  // sentAt is the Cloud Function's signal that the fan-out is done; a client
+  // setting it would stop the push from ever going out.
+  await assertFails(
+    setDoc(doc(asOwner(), 'announcements', 'a2'), {
+      schemaVersion: 1,
+      title: 'Sneaky',
+      body: 'Should not send',
+      href: null,
+      createdBy: OWNER,
+      sentAt: new Date(),
+      recipientCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }),
   );
 });

@@ -76,10 +76,14 @@ function RootNavigator() {
         <Stack.Screen name="settings/about" options={{ title: 'About' }} />
         <Stack.Screen name="settings/contact" options={{ title: 'Contact & Support' }} />
         <Stack.Screen name="settings/notifications" options={{ title: 'Notifications' }} />
+        <Stack.Screen name="settings/privacy" options={{ title: 'Privacy & Data' }} />
         <Stack.Screen name="admin/review" options={{ title: 'Review Queue' }} />
+        <Stack.Screen name="admin/announce" options={{ title: 'Announcement' }} />
         <Stack.Screen name="post/[id]" options={{ title: 'Catch' }} />
         <Stack.Screen name="product/[handle]" options={{ title: 'Product' }} />
         <Stack.Screen name="cart" options={{ title: 'Cart' }} />
+        <Stack.Screen name="wishlist" options={{ title: 'Wishlist' }} />
+        <Stack.Screen name="orders" options={{ title: 'Your Orders' }} />
         <Stack.Screen name="notifications" options={{ title: 'Activity' }} />
         <Stack.Screen name="user/[uid]" options={{ title: 'Angler' }} />
       </Stack.Protected>

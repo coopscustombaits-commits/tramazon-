@@ -22,6 +22,14 @@ service firebase.storage {
         && request.resource.size < megabytes * 1024 * 1024;
     }
 
+    /** Catch media: a still, or a short clip. */
+    function isPostMediaUnder(megabytes) {
+      return (
+        request.resource.contentType.matches('image/.*')
+        || request.resource.contentType.matches('video/.*')
+      ) && request.resource.size < megabytes * 1024 * 1024;
+    }
+
     // avatars/{uid}/{fileName}
     match /avatars/{uid}/{fileName} {
       // Profile photos show up all over the feed, so they're readable by
@@ -32,13 +40,16 @@ service firebase.storage {
 
     // posts/{uid}/{fileName}
     //
-    // Note: the image is uploaded before the post document exists, and stays
+    // Note: the file is uploaded before the post document exists, and stays
     // readable even while the post is pending. That's acceptable — the URL
     // contains an unguessable token and the post itself is not discoverable
     // until approved.
+    //
+    // The size cap is what stops someone uploading a feature film; the app
+    // also refuses clips over 60 seconds before the upload starts.
     match /posts/{uid}/{fileName} {
       allow read: if isSignedIn();
-      allow create: if isSelf(uid) && isImageUnder(12);
+      allow create: if isSelf(uid) && isPostMediaUnder(200);
       // Photos are replaced by posting again, not edited in place. Deletion is
       // done by the Cloud Function that cleans up removed posts.
       allow update: if false;

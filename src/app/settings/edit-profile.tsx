@@ -13,7 +13,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 import { storagePaths } from '@/lib/db/paths';
 import { changeUsername, updateUserProfile, validateUsername } from '@/lib/db/users';
-import { imageFileName, uploadImage } from '@/lib/storage/images';
+import { mediaFileName, uploadFile } from '@/lib/storage/media';
 
 const BIO_MAX = 200;
 
@@ -70,9 +70,9 @@ export default function EditProfileScreen() {
     try {
       let photoURL = profile.photoURL;
       if (pendingPhoto) {
-        const uploaded = await uploadImage(
+        const uploaded = await uploadFile(
           pendingPhoto,
-          storagePaths.avatar(user.uid, imageFileName(pendingPhoto, 'avatar')),
+          storagePaths.avatar(user.uid, mediaFileName(pendingPhoto, 'avatar')),
         );
         photoURL = uploaded.url;
       }

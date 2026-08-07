@@ -1,8 +1,8 @@
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { PostMediaView } from '@/components/post-media';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { EmptyState, Screen, ScreenLoader } from '@/components/ui/screen';
@@ -126,9 +126,6 @@ function ReviewCard({
   onReject: () => void;
   onPressAuthor: () => void;
 }) {
-  const aspectRatio =
-    post.image.width && post.image.height ? post.image.width / post.image.height : 1;
-
   return (
     <View style={styles.card}>
       <Pressable
@@ -146,13 +143,7 @@ function ReviewCard({
         </View>
       </Pressable>
 
-      <Image
-        source={{ uri: post.image.url }}
-        style={[styles.image, { aspectRatio: Math.min(Math.max(aspectRatio, 0.6), 1.6) }]}
-        contentFit="cover"
-        transition={200}
-        accessibilityIgnoresInvertColors
-      />
+      <PostMediaView media={post.media} />
 
       {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : null}
 
@@ -212,10 +203,6 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     ...Typography.caption,
-  },
-  image: {
-    width: '100%',
-    backgroundColor: Colors.surfaceMuted,
   },
   caption: {
     ...Typography.body,

@@ -467,7 +467,28 @@ sales channel the app's token belongs to. In Shopify admin, open a product →
 
 ---
 
-## 9. Store accounts (do these before you're in a hurry)
+## 9. Order tracking (optional, needs the Admin API)
+
+Order history works without this — an order shows as "Order placed" from the
+moment checkout opens. To have it update to *paid*, *shipped*, and carry a
+tracking link, Shopify needs to tell us when that happens.
+
+1. Shopify admin → the app you made in section 8 → **Configuration** →
+   **Admin API integration** → enable `read_orders`.
+2. **Webhooks**: point `orders/create`, `orders/paid`, `orders/fulfilled`, and
+   `orders/cancelled` at the Cloud Function URL that `firebase deploy` prints
+   for `shopifyOrderWebhook`.
+3. Copy the webhook signing secret into your Firebase functions config so the
+   function can verify that a request really came from Shopify.
+
+> This is the one place an **Admin API** credential is involved, and it lives
+> only in Firebase — never in the app. The webhook handler itself is not built
+> yet; the app and database are ready for it, and the order screen degrades
+> honestly until it exists.
+
+---
+
+## 10. Store accounts (do these before you're in a hurry)
 
 Neither is needed until you actually publish, but both have waiting periods.
 

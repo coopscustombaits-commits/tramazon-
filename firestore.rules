@@ -59,6 +59,7 @@ service cloud.firestore {
         && isValidString(request.resource.data.bio, 200)
         // Counters always start at zero; only the server moves them after that.
         && request.resource.data.postCount == 0
+        && request.resource.data.fishLoggedCount == 0
         && request.resource.data.followerCount == 0
         && request.resource.data.followingCount == 0;
 
@@ -99,6 +100,28 @@ service cloud.firestore {
         allow update: if isSelf(uid) && changedKeys().hasOnly(['readAt']);
         allow create, delete: if false;
       }
+
+      // users/{uid}/wishlist/{productId} — entirely the owner's own list.
+      match /wishlist/{productId} {
+        allow read, write: if isSelf(uid);
+      }
+
+      // users/{uid}/orders/{orderId}
+      //
+      // The client records an order when checkout opens, but everything after
+      // that — order number, status, tracking — is written by the Cloud
+      // Function that receives Shopify's webhooks. Letting a client set its
+      // own order to "fulfilled" would make the whole screen meaningless.
+      match /orders/{orderId} {
+        allow read: if isSelf(uid);
+        allow create: if isSelf(uid)
+          && request.resource.data.status == 'placed'
+          && request.resource.data.shopifyOrderId == null
+          && request.resource.data.orderNumber == null
+          && request.resource.data.statusUrl == null
+          && request.resource.data.cartId is string;
+        allow update, delete: if false;
+      }
     }
 
     // ---------------------------------------------------------------------
@@ -125,6 +148,30 @@ service cloud.firestore {
       // A user may check whether they themselves are an admin, nothing more.
       allow get: if isSelf(uid);
       allow list, write: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // announcements/{announcementId}
+    //
+    // Creating one is what triggers the fan-out to every registered device, so
+    // only an admin may write here. Everyone can read them so the app can show
+    // a "news" list without waiting on a push.
+    // ---------------------------------------------------------------------
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin()
+        && request.resource.data.createdBy == request.auth.uid
+        && isValidString(request.resource.data.title, 100)
+        && request.resource.data.title.size() > 0
+        && isValidString(request.resource.data.body, 500)
+        && request.resource.data.body.size() > 0
+        // `sentAt` and `recipientCount` are the Cloud Function's to set — an
+        // announcement that claims to have already been sent would never go out.
+        && request.resource.data.sentAt == null
+        && request.resource.data.recipientCount == 0;
+      // Editing after the push has gone out would leave the two disagreeing.
+      allow update: if false;
+      allow delete: if isAdmin();
     }
 
     // ---------------------------------------------------------------------
@@ -155,8 +202,9 @@ service cloud.firestore {
         && request.resource.data.reviewedAt == null
         && request.resource.data.reviewedBy == null
         && isValidString(request.resource.data.caption, 2000)
-        && request.resource.data.image.url is string
-        && request.resource.data.image.storagePath is string
+        && request.resource.data.media.url is string
+        && request.resource.data.media.storagePath is string
+        && request.resource.data.media.kind in ['photo', 'video']
         && request.resource.data.likeCount == 0
         && request.resource.data.commentCount == 0;
 

@@ -90,6 +90,40 @@ export const PRODUCTS_QUERY = `
   }
 `;
 
+/** Storefront "collections" are what a shopper thinks of as categories. */
+export const COLLECTIONS_QUERY = `
+  ${IMAGE}
+  query Collections($first: Int!) {
+    collections(first: $first, sortKey: TITLE) {
+      edges {
+        node {
+          id
+          handle
+          title
+          image { ...Image }
+        }
+      }
+    }
+  }
+`;
+
+/** Products inside one collection. */
+export const COLLECTION_PRODUCTS_QUERY = `
+  ${MONEY}
+  ${IMAGE}
+  ${PRODUCT_SUMMARY}
+  query CollectionProducts($handle: String!, $first: Int!, $after: String) {
+    collection(handle: $handle) {
+      id
+      title
+      products(first: $first, after: $after) {
+        edges { node { ...ProductSummary } }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+`;
+
 export const PRODUCT_QUERY = `
   ${MONEY}
   ${IMAGE}

@@ -29,6 +29,13 @@ export type ProductOption = {
   values: string[];
 };
 
+export type Collection = {
+  id: string;
+  handle: string;
+  title: string;
+  image: ShopifyImage | null;
+};
+
 /** Just enough to render a product tile. */
 export type ProductSummary = {
   id: string;

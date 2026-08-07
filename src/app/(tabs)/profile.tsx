@@ -77,9 +77,9 @@ export default function ProfileScreen() {
           ) : null}
 
           <View style={styles.stats}>
-            <Stat label="Catches" value={profile.postCount} />
+            <Stat label="Posts" value={profile.postCount} />
+            <Stat label="Fish logged" value={profile.fishLoggedCount ?? 0} />
             <Stat label="Followers" value={profile.followerCount} />
-            <Stat label="Following" value={profile.followingCount} />
           </View>
 
           <Button
