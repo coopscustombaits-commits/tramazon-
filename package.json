@@ -12,7 +12,9 @@
     "lint": "expo lint",
     "emulators": "firebase emulators:start --only firestore,auth,storage --project demo-coops",
     "test:rules": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node --test \"tests/**/*.test.mjs\"",
-    "ci": "npm run typecheck && npx eslint . && npm --prefix functions run build && npx firebase emulators:exec --only firestore --project demo-coops \"npm run test:rules\""
+    "ci": "npm run typecheck && npx eslint . && npm run test:unit && npm --prefix functions run build && npx firebase emulators:exec --only firestore --project demo-coops \"npm run test:rules\"",
+    "test:unit": "node --test \"tests/unit/**/*.test.ts\"",
+    "test": "npm run test:unit && npx firebase emulators:exec --only firestore --project demo-coops \"npm run test:rules\""
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",

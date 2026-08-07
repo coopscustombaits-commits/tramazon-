@@ -43,6 +43,7 @@ src/
   constants/content.ts    About and Contact copy
   lib/
     firebase.ts           Firebase init
+    username.ts           username rules (pure, unit tested)
     auth/                 auth context, Google, Apple, error messages
     db/                   Firestore paths and queries
     storage/              image upload
@@ -76,6 +77,7 @@ sign-in buttons hide themselves, the Shop tab says "coming soon").
 | Settings, About, Contact | Done — awaiting real copy |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done (covers all of Phase 1), 26 rules tests |
+| Tests | 26 unit + 26 security rules, all in CI |
 | Home feed (photo + caption posts, likes, comments) | Done |
 | Pending → approve/reject review workflow | Done |
 | Admin review queue | Done |
@@ -84,8 +86,8 @@ sign-in buttons hide themselves, the Shop tab says "coming soon").
 | In-app activity feed + notification preferences | Done |
 | Public angler profiles | Done |
 
-Every push runs typecheck, lint, an iOS/Android/web bundle, the Cloud
-Functions build, and the security rules tests — see
+Every push runs typecheck, lint, unit tests, an iOS/Android/web bundle, the
+Cloud Functions build, and the security rules tests — see
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml). None of it needs
 credentials.
 
@@ -99,9 +101,12 @@ npm run typecheck    # tsc --noEmit
 npm run lint
 npx expo start -c    # clear the Metro cache (do this after editing .env)
 
-npm run emulators    # local Firestore/Auth/Storage, in one terminal...
-npm run test:rules   # ...then the security rules tests in another
+npm run test:unit    # unit tests — fast, no emulator needed
+npm run test         # unit tests + security rules tests
 npm run ci           # everything CI runs, in one go
+
+npm run emulators    # local Firestore/Auth/Storage, if you want it running
+                     # while you work on the app
 
 firebase deploy --only firestore:rules,firestore:indexes,storage
 firebase deploy --only functions

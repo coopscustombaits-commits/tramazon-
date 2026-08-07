@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   app:
-    name: App — typecheck, lint, bundle
+    name: App — typecheck, lint, unit tests, bundle
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +32,10 @@ jobs:
 
       - name: Lint
         run: npx eslint .
+
+      - name: Unit tests
+        # Node runs the TypeScript directly — no build step, no test framework.
+        run: npm run test:unit
 
       - name: Bundle for iOS and Android
         # Catches anything that typechecks but can't actually be resolved by

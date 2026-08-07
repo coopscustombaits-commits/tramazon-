@@ -12,64 +12,22 @@ import {
 
 import { db } from '@/lib/firebase';
 import { paths } from '@/lib/db/paths';
+import { validateUsername } from '@/lib/username';
 import { SCHEMA_VERSION, type UserPrivate, type UserProfile } from '@/types/models';
 
-export const USERNAME_MIN = 3;
-export const USERNAME_MAX = 20;
-const USERNAME_PATTERN = /^[a-zA-Z0-9_]+$/;
-
-/** Words we don't want people claiming as usernames. */
-const RESERVED_USERNAMES = new Set([
-  'admin',
-  'administrator',
-  'coop',
-  'coops',
-  'coopscustombaits',
-  'support',
-  'help',
-  'moderator',
-  'mod',
-  'official',
-  'staff',
-  'root',
-  'me',
-  'settings',
-]);
-
-export function validateUsername(raw: string): string | null {
-  const username = raw.trim();
-  if (username.length < USERNAME_MIN) {
-    return `Username must be at least ${USERNAME_MIN} characters.`;
-  }
-  if (username.length > USERNAME_MAX) {
-    return `Username must be ${USERNAME_MAX} characters or fewer.`;
-  }
-  if (!USERNAME_PATTERN.test(username)) {
-    return 'Use only letters, numbers, and underscores.';
-  }
-  if (RESERVED_USERNAMES.has(username.toLowerCase())) {
-    return 'That username is reserved.';
-  }
-  return null;
-}
+// Pure username rules live in `lib/username.ts` so they can be unit tested
+// without pulling Firebase in. Re-exported here so callers have one import.
+export {
+  USERNAME_MAX,
+  USERNAME_MIN,
+  suggestUsername,
+  validateUsername,
+} from '@/lib/username';
 
 /** True if nobody has claimed the username yet. */
 export async function isUsernameAvailable(username: string): Promise<boolean> {
   const snapshot = await getDoc(doc(db, paths.username(username.toLowerCase())));
   return !snapshot.exists();
-}
-
-/**
- * Turn an email or display name into a starting-point username, e.g.
- * "Coop Anderson" -> "coopanderson". Callers still have to check availability.
- */
-export function suggestUsername(source: string | null | undefined): string {
-  const base = (source ?? '')
-    .split('@')[0]
-    .replace(/[^a-zA-Z0-9_]/g, '')
-    .slice(0, USERNAME_MAX);
-  if (base.length >= USERNAME_MIN) return base.toLowerCase();
-  return `anglr${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {

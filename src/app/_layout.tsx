@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ErrorBoundary } from '@/components/error-boundary';
 import { ScreenLoader } from '@/components/ui/screen';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { navigationHeader } from '@/constants/theme';
@@ -17,12 +18,15 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <CartProvider>
-            <StatusBar style="dark" />
-            <RootNavigator />
-          </CartProvider>
-        </AuthProvider>
+        {/* Outside the providers, so it still renders if one of them throws. */}
+        <ErrorBoundary>
+          <AuthProvider>
+            <CartProvider>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </CartProvider>
+          </AuthProvider>
+        </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
