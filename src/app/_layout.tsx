@@ -9,6 +9,7 @@ import { ScreenLoader } from '@/components/ui/screen';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { navigationHeader } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
+import { CartProvider } from '@/lib/shopify/cart-context';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -17,8 +18,10 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <StatusBar style="dark" />
-          <RootNavigator />
+          <CartProvider>
+            <StatusBar style="dark" />
+            <RootNavigator />
+          </CartProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -70,6 +73,8 @@ function RootNavigator() {
         <Stack.Screen name="settings/contact" options={{ title: 'Contact & Support' }} />
         <Stack.Screen name="admin/review" options={{ title: 'Review Queue' }} />
         <Stack.Screen name="post/[id]" options={{ title: 'Catch' }} />
+        <Stack.Screen name="product/[handle]" options={{ title: 'Product' }} />
+        <Stack.Screen name="cart" options={{ title: 'Cart' }} />
       </Stack.Protected>
     </Stack>
   );

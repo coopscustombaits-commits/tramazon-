@@ -33,6 +33,8 @@ src/
     settings/             settings, edit profile, about, contact
     admin/                admin-only review queue
     post/[id].tsx         a catch, its likes and comments
+    product/[handle].tsx  a product
+    cart.tsx              cart and checkout
     complete-profile.tsx  username setup after Google/Apple sign-up
   components/ui/          buttons, inputs, cards — the design system
   constants/theme.ts      colors, spacing, type scale
@@ -42,6 +44,7 @@ src/
     auth/                 auth context, Google, Apple, error messages
     db/                   Firestore paths and queries
     storage/              image upload
+    shopify/              Storefront API client, cart state
     notifications.ts      push registration and deep links
   hooks/                  push notification wiring
   types/models.ts         Firestore document shapes
@@ -54,6 +57,11 @@ docs/DATA-MODEL.md        why the database is shaped this way
 ```
 
 ## Phase 1 status
+
+Everything Coop asked for in Phase 1 is built. Three items need credentials
+that only he can create — the app degrades cleanly without them (social
+sign-in buttons hide themselves, the Shop tab says "coming soon").
+
 
 | Feature | State |
 | --- | --- |
@@ -70,7 +78,7 @@ docs/DATA-MODEL.md        why the database is shaped this way
 | Pending → approve/reject review workflow | Done |
 | Admin review queue | Done |
 | Push notifications (review alerts, approval alerts) | Done — deploy functions, `docs/SETUP.md` §7 |
-| Shopify store | Not started |
+| Shopify store (products, cart, checkout) | Done — needs credentials from `docs/SETUP.md` §8 |
 
 ## Commands
 

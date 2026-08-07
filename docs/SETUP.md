@@ -274,7 +274,51 @@ a notification within a few seconds. Tapping it opens the review queue.
 
 ---
 
-## 8. Store accounts (do these before you're in a hurry)
+## 8. Shopify store
+
+The Shop tab reads directly from your Shopify store, so products, prices, and
+stock stay in one place — you keep managing everything in Shopify admin and the
+app follows. Until this is configured, the Shop tab says "store coming soon"
+and everything else works normally.
+
+1. Shopify admin → **Settings** → **Apps and sales channels** →
+   **Develop apps** → **Create an app**. Name it "Coop's Custom Baits Mobile".
+
+2. **Configuration** → **Storefront API** → Configure. Tick at least:
+   - `unauthenticated_read_product_listings`
+   - `unauthenticated_read_products`
+   - `unauthenticated_write_checkouts`
+   - `unauthenticated_read_checkouts`
+
+3. **API credentials** → **Install app** → copy the
+   **Storefront API access token**.
+
+4. Put it in `.env`:
+
+   ```
+   EXPO_PUBLIC_SHOPIFY_STORE_DOMAIN=coops-custom-baits.myshopify.com
+   EXPO_PUBLIC_SHOPIFY_STOREFRONT_TOKEN=the-token-you-just-copied
+   ```
+
+   Use the `.myshopify.com` domain, not a custom domain — the API lives on the
+   former. Restart with `npx expo start -c` so the new values get picked up.
+
+> **Storefront token, not Admin token.** The Storefront token is meant to ship
+> inside apps: it can read published products and manage carts, and that's all.
+> The **Admin API token** can read orders and customers and change your store —
+> it must never go in the app, in `.env`, or in a message to me.
+
+Checkout opens Shopify's own hosted checkout in an in-app browser. That means
+payments, taxes, shipping rates, and discount codes all keep working exactly as
+they do on your website, and the app never touches card details.
+
+If products don't appear, the usual cause is that they aren't published to the
+sales channel the app's token belongs to. In Shopify admin, open a product →
+**Publishing** → make sure your new app is listed.
+
+---
+
+## 9. Store accounts (do these before you're in a hurry)
 
 Neither is needed until you actually publish, but both have waiting periods.
 
