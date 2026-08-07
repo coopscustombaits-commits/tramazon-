@@ -9,21 +9,69 @@ email straight away.
 
 ---
 
-## 1. Tools on your machine
+## 1. Get the code running on your computer
+
+Right now the code lives on GitHub. This section gets it onto your machine and
+running. Everything is typed into **Terminal** (Mac: Cmd+Space, type
+"Terminal") or **PowerShell** (Windows: Start menu, type "PowerShell"). The
+commands are identical on both.
+
+### 1a. Install Node and Git
+
+- **Node.js** — https://nodejs.org, download the **LTS** version, run the
+  installer, accept the defaults.
+- **Git** — Mac: already installed, or run `git --version` and macOS offers to
+  install it. Windows: https://git-scm.com/download/win, accept the defaults.
+
+Close and reopen the terminal, then check both landed:
 
 ```bash
-node --version   # need 20 or newer
-npm install      # from the project folder
+node --version    # want v20 or higher
+git --version
+```
+
+If either says "command not found", the installer didn't finish or the terminal
+is still the old one — reopen it and try again.
+
+### 1b. Download the code
+
+```bash
+cd ~/Documents
+git clone https://github.com/coopscustombaits-commits/tramazon-.git coops-app
+cd coops-app
+git checkout claude/coops-baits-mobile-phase-1-h8fnwd
+npm install
+```
+
+`npm install` takes a few minutes and prints a wall of text. Warnings are
+normal; only an **error** matters.
+
+From here on, every command in this document is run from inside that
+`coops-app` folder. If you close the terminal, get back with:
+
+```bash
+cd ~/Documents/coops-app
+```
+
+### 1c. Two more tools
+
+```bash
 npm install -g eas-cli firebase-tools
 ```
 
-You'll also want:
+On Mac these may need `sudo npm install -g eas-cli firebase-tools` — it'll ask
+for your computer password.
 
-- An **Expo account** — free, at https://expo.dev. Run `eas login`.
-- **Xcode** (Mac only) if you want the iOS simulator.
-- **Android Studio** if you want the Android emulator.
+### 1d. How you'll run the app
 
-Neither is required to start — you can run on your own phone.
+Easiest: **on your own phone**, using the free **Expo Go** app from the App
+Store or Play Store. No Xcode, no Android Studio.
+
+(Later, Google sign-in, Apple sign-in, and push notifications need a
+development build instead — section 6. Everything else works in Expo Go, so
+start here.)
+
+You'll also want a free **Expo account** at https://expo.dev, then `eas login`.
 
 ---
 
@@ -78,16 +126,19 @@ This is the backend: accounts, database, photo storage.
      roughly nothing. You'll need Blaze anyway for the push notification
      functions in a later step, so this is the moment to add a card.
 
-7. Deploy the rules and indexes from this repo:
+7. Deploy the security rules from this repo. **Do this before anyone signs
+   up** — until it runs, Firebase's default rules block everything and the app
+   will look broken.
 
    ```bash
    firebase login
-   firebase use --add          # pick the project, alias it "default"
+   firebase use --add
    firebase deploy --only firestore:rules,firestore:indexes,storage
    ```
 
-   **Do this before anyone signs up.** Until it runs, the default rules block
-   everything and the app will look broken.
+   `firebase login` opens a browser to sign in with your Google account.
+   `firebase use --add` asks two questions: pick `coops-custom-baits` from the
+   list (arrow keys, Enter), then type `default` when it asks for an alias.
 
 **You can now run the app.**
 
@@ -95,9 +146,18 @@ This is the backend: accounts, database, photo storage.
 npx expo start
 ```
 
-Press `i` for the iOS simulator, `a` for Android, or scan the QR code with the
-Expo Go app to run on your phone. Email sign-up works; the Google and Apple
-buttons stay hidden until you finish the next sections.
+A QR code appears. Open **Expo Go** on your phone and scan it (iPhone: use the
+Camera app; Android: the "Scan QR code" button inside Expo Go). Your phone and
+computer must be on the same Wi-Fi.
+
+Sign up with an email and password. Google and Apple buttons stay hidden until
+sections 4 and 5 — that's expected, not a bug.
+
+If you get *"Missing EXPO_PUBLIC_FIREBASE_API_KEY"*, the `.env` file wasn't
+found or is incomplete. Check it's named exactly `.env` (not `.env.txt`), sits
+in the `coops-app` folder, then stop the server with Ctrl+C and restart with
+`npx expo start -c`. The `-c` clears a cache that otherwise holds the old
+values.
 
 ---
 
@@ -106,17 +166,35 @@ buttons stay hidden until you finish the next sections.
 Admin is granted by a document in Firestore, not by a flag in the app, so
 nobody can grant it to themselves.
 
-1. Sign up in the app with the email you want to use as your owner account.
-2. Firebase console → **Authentication** → **Users** → copy the **User UID**
-   for that account (a long string like `k3Jd8sLp...`).
-3. Firestore → **Start collection** → collection ID `admins`.
-4. Document ID: paste your UID. Add one field:
-   - `grantedAt` — type `timestamp` — today's date.
-5. Add the same UID to `.env` as `EXPO_PUBLIC_ADMIN_UID` and restart the dev
-   server (`npx expo start -c`).
+1. Sign up in the app with the email you want as your owner account (you did
+   this at the end of section 2).
 
-Reopen the app. Your profile now shows an **Admin** badge and a **Review
-pending posts** button.
+2. Firebase console → **Authentication** → **Users**. Your account is listed.
+   Copy the **User UID** — a long string like `k3Jd8sLp9QeR...`. Hover the row
+   and there's a copy button.
+
+3. Firestore Database → **Start collection** (or **+ Start collection** if you
+   already have data). Collection ID: `admins` — exactly that, lowercase. Next.
+
+4. **Document ID**: paste your UID. Do *not* click "Auto-ID" — the document ID
+   has to be your UID, that's the whole mechanism.
+
+   Add one field:
+   - Field: `grantedAt`
+   - Type: `timestamp`
+   - Value: today's date and time
+
+   Save.
+
+5. Open `.env` in a text editor and set `EXPO_PUBLIC_ADMIN_UID` to the same
+   UID. Then restart: Ctrl+C in the terminal, and `npx expo start -c`.
+
+Reopen the app and go to the Profile tab. You should see an **Admin** badge
+under your username and a **Review pending posts** button.
+
+If you don't: the usual cause is a typo in the document ID, or a stray space
+when it was pasted. The document ID in Firestore must match the UID in
+Authentication character for character.
 
 ---
 
