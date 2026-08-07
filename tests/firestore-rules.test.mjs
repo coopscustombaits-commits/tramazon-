@@ -50,6 +50,8 @@ function profile(uid, username) {
     followerCount: 0,
     followingCount: 0,
     providers: ['password'],
+    accountStatus: 'active',
+    suspendedUntil: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -78,6 +80,9 @@ function post(authorId, overrides = {}) {
     reviewNote: null,
     likeCount: 0,
     commentCount: 0,
+    reportCount: 0,
+    featured: false,
+    moderation: null,
     species: null,
     speciesSlug: null,
     tournamentId: null,
@@ -518,5 +523,100 @@ test('an announcement cannot be created pre-marked as sent', async () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     }),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Account suspension and banning (Phase 4 groundwork, enforced today)
+// ---------------------------------------------------------------------------
+
+const BANNED = 'banned-uid';
+
+test('a banned account cannot post, comment, or like', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'users', BANNED), {
+      ...profile(BANNED, 'Troublemaker'),
+      accountStatus: 'banned',
+    });
+  });
+
+  const banned = env.authenticatedContext(BANNED).firestore();
+
+  await assertFails(setDoc(doc(banned, 'posts', 'banned-post'), post(BANNED)));
+  await assertFails(
+    setDoc(doc(banned, 'posts', 'approved1', 'comments', 'nope'), {
+      schemaVersion: 1,
+      postId: 'approved1',
+      authorId: BANNED,
+      author: { uid: BANNED, username: 'troublemaker', photoURL: null },
+      text: 'still here',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+  );
+  await assertFails(
+    setDoc(doc(banned, 'posts', 'approved1', 'likes', BANNED), {
+      uid: BANNED,
+      createdAt: new Date(),
+    }),
+  );
+
+  // Reading is still allowed — a ban stops someone contributing, it doesn't
+  // lock them out of an app they may have orders in.
+  await assertSucceeds(getDoc(doc(banned, 'posts', 'approved1')));
+});
+
+test('a banned account cannot lift its own ban', async () => {
+  const banned = env.authenticatedContext(BANNED).firestore();
+  await assertFails(
+    updateDoc(doc(banned, 'users', BANNED), { accountStatus: 'active' }),
+  );
+  // Nor by smuggling it alongside a legitimate edit.
+  await assertFails(
+    updateDoc(doc(banned, 'users', BANNED), {
+      bio: 'Reformed',
+      accountStatus: 'active',
+    }),
+  );
+});
+
+test('a suspended account is blocked the same way', async () => {
+  const SUSPENDED = 'suspended-uid';
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'users', SUSPENDED), {
+      ...profile(SUSPENDED, 'Timeout'),
+      accountStatus: 'suspended',
+    });
+  });
+  const suspended = env.authenticatedContext(SUSPENDED).firestore();
+  await assertFails(setDoc(doc(suspended, 'posts', 'suspended-post'), post(SUSPENDED)));
+});
+
+test('nobody can sign up already marked active-but-featured or pre-banned', async () => {
+  const NEWCOMER = 'newcomer-uid';
+  const newcomer = env.authenticatedContext(NEWCOMER).firestore();
+  await assertFails(
+    setDoc(doc(newcomer, 'users', NEWCOMER), {
+      ...profile(NEWCOMER, 'Sneaky'),
+      accountStatus: 'banned',
+    }),
+  );
+  await assertSucceeds(
+    setDoc(doc(newcomer, 'users', NEWCOMER), profile(NEWCOMER, 'Sneaky')),
+  );
+});
+
+test('only an admin can feature a post on the home page', async () => {
+  await assertFails(updateDoc(doc(asAngler(), 'posts', 'approved1'), { featured: true }));
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'posts', 'approved1'), {
+      featured: true,
+      updatedAt: new Date(),
+    }),
+  );
+  // And nobody creates a post already featured.
+  await assertFails(
+    setDoc(doc(asAngler(), 'posts', 'self-featured'), { ...post(ANGLER), featured: true }),
   );
 });

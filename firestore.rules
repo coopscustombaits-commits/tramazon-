@@ -44,6 +44,22 @@ service cloud.firestore {
       return value is string && value.size() <= maxLength;
     }
 
+    /**
+     * A suspended or banned account can still read and can still sign in, but
+     * cannot create anything. Only an admin can change `accountStatus` — the
+     * profile update rule below excludes the field, so nobody can lift their
+     * own ban.
+     *
+     * This costs one document read per write. That's the price of enforcing it
+     * where it can't be bypassed, rather than in app code a modified client
+     * would simply skip.
+     */
+    function accountActive() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid))
+             .data.accountStatus == 'active';
+    }
+
     // ---------------------------------------------------------------------
     // users/{uid} — public profile
     // ---------------------------------------------------------------------
@@ -62,7 +78,10 @@ service cloud.firestore {
         && request.resource.data.fishLoggedCount == 0
         && request.resource.data.points == 0
         && request.resource.data.followerCount == 0
-        && request.resource.data.followingCount == 0;
+        && request.resource.data.followingCount == 0
+        // Nobody signs themselves up pre-banned or pre-cleared of a ban.
+        && request.resource.data.accountStatus == 'active'
+        && request.resource.data.suspendedUntil == null;
 
       allow update: if isSelf(uid)
         // Owners may edit presentation fields only. Counters and uid are
@@ -195,7 +214,7 @@ service cloud.firestore {
       // feed. Relax it only if there's ever a public web version.
       allow read: if isSignedIn() && (isApproved() || isAuthor() || isAdmin());
 
-      allow create: if isSignedIn()
+      allow create: if accountActive()
         && request.resource.data.authorId == request.auth.uid
         // Nothing goes live without review.
         && request.resource.data.status == 'pending'
@@ -207,7 +226,10 @@ service cloud.firestore {
         && request.resource.data.media.storagePath is string
         && request.resource.data.media.kind in ['photo', 'video']
         && request.resource.data.likeCount == 0
-        && request.resource.data.commentCount == 0;
+        && request.resource.data.commentCount == 0
+        && request.resource.data.reportCount == 0
+        // Only an admin decides what gets featured.
+        && request.resource.data.featured == false;
 
       // Authors may fix a caption, but only while the post is still pending —
       // an approved post can't be edited into something else after the fact.
@@ -224,14 +246,22 @@ service cloud.firestore {
         && request.resource.data.status in ['approved', 'rejected']
         && request.resource.data.reviewedBy == request.auth.uid;
 
+      // Featuring a post on the home page. Separate from review so an admin
+      // can pin something without it counting as a fresh moderation decision.
+      allow update: if isAdmin() && changedKeys().hasOnly(['featured', 'updatedAt']);
+
       allow delete: if isAuthor() || isAdmin();
 
       // posts/{postId}/likes/{uid} — document id is the liker.
       match /likes/{likerId} {
         allow read: if isSignedIn();
-        // Only on approved posts, only your own like.
-        allow create, delete: if isSelf(likerId)
+        // Only on approved posts, only your own like. Removing a like is
+        // allowed even while suspended — undoing something is never the
+        // behaviour a ban is meant to stop.
+        allow create: if isSelf(likerId)
+          && accountActive()
           && get(/databases/$(database)/documents/posts/$(postId)).data.status == 'approved';
+        allow delete: if isSelf(likerId);
         allow update: if false;
       }
 
@@ -239,7 +269,7 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if isSignedIn();
 
-        allow create: if isSignedIn()
+        allow create: if accountActive()
           && request.resource.data.authorId == request.auth.uid
           && isValidString(request.resource.data.text, 1000)
           && request.resource.data.text.size() > 0

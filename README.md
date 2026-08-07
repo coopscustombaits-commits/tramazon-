@@ -64,7 +64,8 @@ firestore.rules           who can read and write what — the real enforcement
 storage.rules             photo upload limits
 firestore.indexes.json    composite indexes
 docs/DATA-MODEL.md        why the database is shaped this way
-docs/ROADMAP.md           how Phase 2 and 3 fit the existing schema
+docs/ROADMAP.md           how Phases 2-4 fit the existing schema, and what
+                          the app stores require before the first submission
 ```
 
 ## Phase 1 status
@@ -86,7 +87,7 @@ the Shopify webhook is wired up).
 | Settings, About, Contact | Done — awaiting real copy |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done (covers all of Phase 1), 30 rules tests |
-| Tests | 30 unit + 30 security rules, all in CI |
+| Tests | 30 unit + 35 security rules, all in CI |
 | Home feed (photo/video posts, species tag, likes, comments, share) | Done |
 | Pending → approve/reject review workflow | Done |
 | Admin review queue | Done |

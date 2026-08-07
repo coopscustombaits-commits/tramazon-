@@ -81,6 +81,8 @@ export async function createUserProfile(
     followerCount: 0,
     followingCount: 0,
     providers: user.providerData.map((p) => p.providerId),
+    accountStatus: 'active',
+    suspendedUntil: null,
     createdAt: null,
     updatedAt: null,
   };

@@ -63,7 +63,22 @@ export type UserProfile = Timestamps & {
 
   /** Which providers this account has linked: 'password' | 'google.com' | 'apple.com'. */
   providers: string[];
+
+  /**
+   * Moderation state. Only an admin can change this — the security rules deny
+   * the field to its own owner, so nobody can un-ban themselves.
+   *
+   * Enforced today: a non-active account cannot post, comment, or like. The
+   * Phase 4 dashboard is the UI for it; until then it's editable from the
+   * Firebase console, which means the ability to ban somebody exists from day
+   * one rather than waiting on a dashboard.
+   */
+  accountStatus: AccountStatus;
+  /** For a temporary suspension. Null for active and permanent bans. */
+  suspendedUntil: Timestamp | null;
 };
+
+export type AccountStatus = 'active' | 'suspended' | 'banned';
 
 /**
  * `users/{uid}/private/profile` — only readable/writable by the owner.
@@ -149,6 +164,23 @@ export type Post = Timestamps & {
 
   likeCount: number;
   commentCount: number;
+  /** How many people have reported this post. Server-written. */
+  reportCount: number;
+
+  /** Pinned to the top of the home feed by an admin. */
+  featured: boolean;
+
+  /**
+   * Reserved for Phase 4's automated review. `decidedBy` records whether a
+   * human or a model made the call, which is what makes an appeal reviewable.
+   */
+  moderation: {
+    decidedBy: 'human' | 'ai' | null;
+    /** Model confidence that the content is safe, 0-1. Null if never scored. */
+    score: number | null;
+    /** e.g. ['profanity', 'spam']. Empty when nothing was flagged. */
+    labels: string[];
+  } | null;
 
   /** Free text as the angler typed it, e.g. "Largemouth Bass". */
   species: string | null;
