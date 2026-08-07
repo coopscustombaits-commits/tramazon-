@@ -19,12 +19,14 @@ import {
   collection,
   deleteDoc,
   doc,
+  endAt,
   getDoc,
   getDocs,
   limit,
   orderBy,
   query,
   setDoc,
+  startAt,
   updateDoc,
   where,
 } from 'firebase/firestore';
@@ -83,6 +85,7 @@ function post(authorId, overrides = {}) {
     reportCount: 0,
     featured: false,
     moderation: null,
+    keywords: ['nice'],
     species: null,
     speciesSlug: null,
     tournamentId: null,
@@ -302,6 +305,82 @@ test('a query for someone else’s pending posts is refused', async () => {
     where('status', '==', 'pending'),
     orderBy('createdAt', 'asc'),
     limit(10),
+  )));
+});
+
+test('search keywords are capped, so a post cannot be bloated into the index', async () => {
+  const tooMany = Array.from({ length: 41 }, (_, index) => `word${index}`);
+  await assertFails(
+    setDoc(doc(asAngler(), 'posts', 'keyword-bomb'), post(ANGLER, { keywords: tooMany })),
+  );
+  await assertFails(
+    setDoc(doc(asAngler(), 'posts', 'keyword-string'), post(ANGLER, { keywords: 'pike' })),
+  );
+  await assertSucceeds(
+    setDoc(doc(asAngler(), 'posts', 'keyword-ok'), post(ANGLER, { keywords: tooMany.slice(0, 40) })),
+  );
+});
+
+test('editing a caption may resync its keywords, but not past the cap', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'posts', 'recaption'), post(ANGLER));
+  });
+  await assertSucceeds(
+    updateDoc(doc(asAngler(), 'posts', 'recaption'), {
+      caption: 'Chartreuse jig',
+      keywords: ['chartreuse', 'jig'],
+      updatedAt: new Date(),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(asAngler(), 'posts', 'recaption'), {
+      caption: 'Chartreuse jig',
+      keywords: Array.from({ length: 41 }, (_, index) => `word${index}`),
+      updatedAt: new Date(),
+    }),
+  );
+});
+
+test('the species hub query is allowed, and only for approved posts', async () => {
+  await assertSucceeds(getDocs(query(
+    collection(asOther(), 'posts'),
+    where('speciesSlug', '==', 'largemouth-bass'),
+    where('status', '==', 'approved'),
+    orderBy('publishedAt', 'desc'),
+    limit(10),
+  )));
+  // Dropping the status filter would let a hub surface pending posts.
+  await assertFails(getDocs(query(
+    collection(asOther(), 'posts'),
+    where('speciesSlug', '==', 'largemouth-bass'),
+    orderBy('publishedAt', 'desc'),
+    limit(10),
+  )));
+});
+
+test('the keyword search query is allowed, and only for approved posts', async () => {
+  await assertSucceeds(getDocs(query(
+    collection(asOther(), 'posts'),
+    where('status', '==', 'approved'),
+    where('keywords', 'array-contains', 'pike'),
+    orderBy('publishedAt', 'desc'),
+    limit(30),
+  )));
+  await assertFails(getDocs(query(
+    collection(asOther(), 'posts'),
+    where('keywords', 'array-contains', 'pike'),
+    orderBy('publishedAt', 'desc'),
+    limit(30),
+  )));
+});
+
+test('the angler search query (username prefix) is allowed', async () => {
+  await assertSucceeds(getDocs(query(
+    collection(asOther(), 'users'),
+    orderBy('usernameLower'),
+    startAt('riv'),
+    endAt(`riv`),
+    limit(25),
   )));
 });
 

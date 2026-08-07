@@ -1,8 +1,15 @@
 import type { User } from 'firebase/auth';
 import {
+  collection,
   doc,
+  endAt,
   getDoc,
+  getDocs,
+  limit,
   onSnapshot,
+  orderBy,
+  query,
+  startAt,
   runTransaction,
   serverTimestamp,
   updateDoc,
@@ -12,6 +19,7 @@ import {
 
 import { db } from '@/lib/firebase';
 import { paths } from '@/lib/db/paths';
+import { prefixRangeEnd } from '@/lib/search';
 import { validateUsername } from '@/lib/username';
 import { SCHEMA_VERSION, type UserPrivate, type UserProfile } from '@/types/models';
 
@@ -201,6 +209,28 @@ export async function deleteOwnUserData(uid: string): Promise<void> {
   batch.delete(doc(db, paths.userPrivate(uid)));
   batch.delete(doc(db, paths.user(uid)));
   await batch.commit();
+}
+
+/**
+ * Find anglers by the start of their username.
+ *
+ * `usernameLower` exists precisely for this — a range query over it is the
+ * closest thing Firestore offers to a search, and it's enough for names.
+ */
+export async function searchUsers(prefix: string): Promise<UserProfile[]> {
+  const term = prefix.trim().toLowerCase();
+  if (term.length < 2) return [];
+
+  const snapshot = await getDocs(
+    query(
+      collection(db, paths.users),
+      orderBy('usernameLower'),
+      startAt(term),
+      endAt(prefixRangeEnd(term)),
+      limit(25),
+    ),
+  );
+  return snapshot.docs.map((entry) => entry.data() as UserProfile);
 }
 
 /** Presence of `admins/{uid}` is what grants review powers. */

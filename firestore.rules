@@ -276,6 +276,18 @@ service cloud.firestore {
         return isSignedIn() && resource.data.authorId == request.auth.uid;
       }
 
+      // Search keywords come from the client, so cap them. MAX_KEYWORDS in
+      // src/lib/search.ts is 40 — keep the two in step.
+      //
+      // Absence passes: a post without keywords simply doesn't turn up in
+      // search, which is a feature gap and not a security problem. Requiring
+      // the field would instead make every pre-search post uneditable.
+      function validKeywords() {
+        return !('keywords' in request.resource.data)
+          || (request.resource.data.keywords is list
+              && request.resource.data.keywords.size() <= 40);
+      }
+
       // Signed-in users see approved posts; you can always see your own (so
       // you can watch it move through review); admins see everything.
       // Sign-in is required deliberately — the whole app is behind auth, and
@@ -297,15 +309,23 @@ service cloud.firestore {
         && request.resource.data.likeCount == 0
         && request.resource.data.commentCount == 0
         && request.resource.data.reportCount == 0
+        // Search keywords are client-computed, so they need a ceiling — a huge
+        // array is a cheap way to bloat the document and the index.
+        && validKeywords()
         // Only an admin decides what gets featured.
         && request.resource.data.featured == false;
 
       // Authors may fix a caption, but only while the post is still pending —
       // an approved post can't be edited into something else after the fact.
+      // `keywords` rides along because it's derived from the caption and the
+      // species; leaving it out would let an edit desync search from content.
       allow update: if isAuthor()
         && resource.data.status == 'pending'
-        && changedKeys().hasOnly(['caption', 'species', 'speciesSlug', 'updatedAt'])
-        && isValidString(request.resource.data.caption, 2000);
+        && changedKeys().hasOnly([
+             'caption', 'species', 'speciesSlug', 'keywords', 'updatedAt'
+           ])
+        && isValidString(request.resource.data.caption, 2000)
+        && validKeywords();
 
       // Moderation. Only admins, and only into a terminal state.
       allow update: if isAdmin()

@@ -182,6 +182,12 @@ export type Post = Timestamps & {
     labels: string[];
   } | null;
 
+  /**
+   * Pre-computed search words from the caption, species, and author. Firestore
+   * has no full-text search; this is what `array-contains` matches against.
+   */
+  keywords: string[];
+
   /** Free text as the angler typed it, e.g. "Largemouth Bass". */
   species: string | null;
   /**

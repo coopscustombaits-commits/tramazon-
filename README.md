@@ -112,18 +112,18 @@ Phase 2 or 3 exists as a screen, and the Phase 4 dashboard doesn't exist at all.
 | Dark mode toggle | Done |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done, covers all four phases |
-| Tests | 30 unit + 43 security rules, all in CI |
+| Tests | 42 unit + 43 security rules, all in CI |
 
-### Phase 2 — Community · 1 of 8
+### Phase 2 — Community · 5 of 9
 
 | Feature | State |
 | --- | --- |
 | Photo **and** video posts | **Done** (built in Phase 1) |
 | Follow / unfollow | **Done** |
+| Search for users | **Done** — username prefix search |
+| Search for posts | **Done** — keyword search, whole words only ([why](docs/ROADMAP.md#phase-2--community)) |
+| Species communities | **Done** — 12 curated hubs |
 | Private messaging | Not built |
-| Search for users | Not built |
-| Search for posts | Not built — needs a decision first, see ROADMAP |
-| Species communities | Not built — `speciesSlug` and its index are ready |
 | Product reviews | Not built |
 | Bait reviews | Not built |
 | YouTube integration | Not built |

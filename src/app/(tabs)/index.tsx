@@ -103,6 +103,16 @@ export default function FeedScreen() {
         title="The Feed"
         actions={[
           {
+            icon: 'search',
+            label: 'Search',
+            onPress: () => router.push('/search'),
+          },
+          {
+            icon: 'fish-outline',
+            label: 'Species hubs',
+            onPress: () => router.push('/species'),
+          },
+          {
             icon: unread > 0 ? 'notifications' : 'notifications-outline',
             label: unread > 0 ? `Activity, ${unread} unread` : 'Activity',
             badge: unread,

@@ -33,11 +33,11 @@ because a missing one of these is a rejection, not a feature gap.
 
 | Feature | What it needs | Status |
 | --- | --- | --- |
-| Follow / unfollow | New `follows` collection | Ready |
+| Follow / unfollow | New `follows` collection | **Built** |
+| Search users | Prefix query on `usernameLower` | **Built** |
+| Search posts | `posts.keywords` + `array-contains` | **Built** — see the note below |
+| Species communities | `posts.speciesSlug` ★ + index | **Built** |
 | Private messaging | New `conversations` collection | Ready |
-| Search users | Prefix query on `usernameLower` | Ready |
-| Search posts | See the note below | **Needs a decision** |
-| Species communities | `posts.speciesSlug` ★ + index | Ready |
 | Product reviews | New `productReviews` collection | Ready |
 | Bait reviews | New `baitReviews` collection | Ready |
 | Photo and video posts | — | **Done in Phase 1** |
@@ -57,29 +57,38 @@ includes `new_message`, so the push plumbing routes it without changes.
 
 **Species communities.** Posts carry free-text `species` plus ★`speciesSlug`,
 a normalized form written at post time ("Largemouth Bass", "largemouth bass",
-and "LARGEMOUTH  BASS" all become `largemouth-bass`). A species hub is then an
-exact-match query, and the composite index is already declared. Without the
-slug this would have meant rewriting every post later.
+and "LARGEMOUTH  BASS" all become `largemouth-bass`). A species hub is an
+exact-match query on the slug. Without it this would have meant rewriting every
+post later.
 
-**Searching posts.** This is the one item that doesn't fall out of the current
-shape, and it's worth knowing before it's built rather than after: **Firestore
-has no full-text search.** It can do prefix matching on a single field, which
-is enough for usernames but not for "show me posts mentioning chartreuse".
+The hub list in `src/constants/species-hubs.ts` is curated, not derived from
+what's been posted — an empty hub reads as "nobody's caught one yet", which
+invites a post, whereas showing only species that already have catches hides
+exactly the ones worth filling. Adding a species is one line in that file.
 
-Two honest options:
+**Searching posts — and its one real limit.** **Firestore has no full-text
+search.** It can prefix-match a single field, which is enough for usernames but
+not for "show me posts mentioning chartreuse".
 
-1. *Keyword array on each post.* Write a `keywords: string[]` field at post
-   time (caption words, species, author) and query with `array-contains`.
-   Free, no new service, but matches whole words only — no typo tolerance, no
-   ranking.
-2. *A real search index.* The Algolia or Typesense Firebase extension mirrors
-   the `posts` collection and gives proper ranked, typo-tolerant search. Costs
-   money and adds a moving part.
+What's built is the keyword-array approach: every post carries
+`keywords: string[]`, computed at post time from the caption, the species, and
+the author's username (lowercased, punctuation stripped, stop words and
+two-letter words dropped, capped at 40 entries). Search runs
+`where('keywords', 'array-contains', term)`.
 
-Recommendation: start with (1). It handles "find posts about pike" well enough
-for a community this size, and (2) can be added later without changing how
-posts are stored. The field wasn't added pre-emptively because unlike the slug,
-it depends on which option gets chosen.
+The limit worth knowing: **it matches whole words only.** "pike" finds posts,
+"pik" doesn't, and there's no typo tolerance or relevance ranking. That's an
+acceptable trade for a community this size, and it costs nothing extra.
+
+If it stops being enough, the upgrade is the Algolia or Typesense Firebase
+extension, which mirrors the `posts` collection into a real search index.
+It's additive — nothing about how posts are stored has to change, and the
+`keywords` field can stay or go.
+
+One thing to know operationally: keywords are written when a post is created,
+so posts written before this feature existed have no `keywords` field and won't
+turn up in a search. Since nothing has shipped yet, that set is empty. If it
+ever isn't, a one-off backfill script over `posts` fixes it.
 
 **Product and bait reviews.** Two separate collections, because the brief
 correctly separates them: `productReviews/{shopifyProductId}/reviews/{uid}`

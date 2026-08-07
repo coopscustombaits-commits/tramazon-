@@ -21,6 +21,7 @@ import {
 
 import { paths, storagePaths } from '@/lib/db/paths';
 import { db } from '@/lib/firebase';
+import { extractKeywords } from '@/lib/search';
 import { speciesSlug } from '@/lib/species';
 import { deleteFile, mediaFileName, uploadFile } from '@/lib/storage/media';
 import {
@@ -131,6 +132,7 @@ export async function createPost(input: CreatePostInput): Promise<string> {
       reportCount: 0,
       featured: false,
       moderation: null,
+      keywords: extractKeywords(caption, input.species, profile.username),
       species: input.species?.trim() || null,
       speciesSlug: speciesSlug(input.species),
       tournamentId: null,
@@ -195,6 +197,48 @@ export async function fetchApprovedPostsByAuthor(authorId: string): Promise<Post
       where('status', '==', 'approved'),
       orderBy('publishedAt', 'desc'),
       queryLimit(60),
+    ),
+  );
+  return snapshot.docs.map(toPost);
+}
+
+/** Approved catches for one species — the Phase 2 species hubs. */
+export async function fetchPostsBySpecies(
+  slug: string,
+  cursor: QueryDocumentSnapshot<DocumentData> | null = null,
+): Promise<PostPage> {
+  const snapshot = await getDocs(
+    query(
+      collection(db, paths.posts),
+      where('speciesSlug', '==', slug),
+      where('status', '==', 'approved'),
+      orderBy('publishedAt', 'desc'),
+      ...(cursor ? [startAfter(cursor)] : []),
+      queryLimit(FEED_PAGE_SIZE),
+    ),
+  );
+  return {
+    posts: snapshot.docs.map(toPost),
+    cursor: snapshot.docs.at(-1) ?? null,
+    hasMore: snapshot.docs.length === FEED_PAGE_SIZE,
+  };
+}
+
+/**
+ * Search approved catches by keyword.
+ *
+ * `array-contains` matches one whole word, so this finds "pike" but not
+ * "pik". That limitation is documented in docs/ROADMAP.md along with the
+ * upgrade path.
+ */
+export async function searchPosts(term: string): Promise<Post[]> {
+  const snapshot = await getDocs(
+    query(
+      collection(db, paths.posts),
+      where('status', '==', 'approved'),
+      where('keywords', 'array-contains', term),
+      orderBy('publishedAt', 'desc'),
+      queryLimit(30),
     ),
   );
   return snapshot.docs.map(toPost);
