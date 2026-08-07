@@ -68,44 +68,121 @@ docs/ROADMAP.md           how Phases 2-4 fit the existing schema, and what
                           the app stores require before the first submission
 ```
 
-## Phase 1 status
+## Build status
 
-All of Phase 1 is built. Several items need credentials that only Coop can
-create — the app degrades cleanly without them (social sign-in buttons hide
-themselves, the Shop tab says "coming soon", orders read "Order placed" until
-the Shopify webhook is wired up).
+**Phase 1 is complete. Phases 2, 3, and 4 are not built.**
 
+The later phases have been *designed for* — [`docs/ROADMAP.md`](docs/ROADMAP.md)
+audits every item against the database schema, and a few fields were added early
+so nothing needs restructuring. That is not the same as being built. Nothing in
+Phase 2 or 3 exists as a screen, and the Phase 4 dashboard doesn't exist at all.
+
+| Phase | Built |
+| --- | --- |
+| **1 — Core app** | Everything |
+| **2 — Community** | 1 of 8 items |
+| **3 — Engagement** | 1 of 9 items |
+| **4 — Admin dashboard & moderation** | Enforcement only, no dashboard |
+
+---
+
+### Phase 1 — Core app · complete
 
 | Feature | State |
 | --- | --- |
 | Project setup, theme, navigation | Done |
 | Email sign up / log in / password reset | Done |
-| Sign in with Google | Done — needs credentials from `docs/SETUP.md` §4 |
-| Sign in with Apple | Done — needs credentials from `docs/SETUP.md` §5 |
-| User profiles (photo, username, bio, favorite species) | Done |
+| Sign in with Google | Done — needs credentials, `docs/SETUP.md` §4 |
+| Sign in with Apple | Done — needs credentials, `docs/SETUP.md` §5 |
+| Profiles: photo, username, bio, favorite species | Done |
 | Edit profile | Done |
-| Settings, About, Contact | Done — awaiting real copy |
-| Log out / delete account | Done |
-| Firestore schema + security rules | Done (covers all of Phase 1), 30 rules tests |
-| Tests | 30 unit + 35 security rules, all in CI |
-| Home feed (photo/video posts, species tag, likes, comments, share) | Done |
-| Pending → approve/reject review workflow | Done |
-| Admin review queue | Done |
-| Push notifications (review alerts, approval alerts) | Done — deploy functions, `docs/SETUP.md` §7 |
-| Shopify store (products, categories, search, cart, checkout) | Done — needs credentials from `docs/SETUP.md` §8 |
+| Basic stats (posts, fish logged) | Done — fish logged is a placeholder |
+| Shopify: products, categories, search, detail pages | Done — needs credentials, §8 |
+| Shopify: cart and checkout | Done |
 | Wishlist | Done |
-| Order history | Done — live status needs the webhook in `docs/SETUP.md` §9 |
-| Announcements to all users | Done |
-| Privacy & account management | Done — awaiting a policy URL |
-| Dark mode toggle | Done |
+| Order history | Screen done — **live status needs a webhook that isn't written yet**, §9 |
+| Home feed: photo/video posts, caption, species tag | Done |
+| Pending → approve/reject workflow | Done |
+| Admin review queue | Done |
+| Like, comment, share | Done |
+| Push: review alert, approval alert, announcements | Done — deploy functions, §7 |
 | In-app activity feed + notification preferences | Done |
-| Basic stats (posts, fish logged) | Done — fish logged is a placeholder until the catch log lands |
 | Public angler profiles | Done |
+| Settings, About, Contact, Privacy | Done — **awaiting Coop's real copy** |
+| Dark mode toggle | Done |
+| Log out / delete account | Done |
+| Firestore schema + security rules | Done, covers all four phases |
+| Tests | 30 unit + 35 security rules, all in CI |
+
+### Phase 2 — Community · 1 of 8
+
+| Feature | State |
+| --- | --- |
+| Photo **and** video posts | **Done** (built in Phase 1) |
+| Follow / unfollow | Not built |
+| Private messaging | Not built |
+| Search for users | Not built |
+| Search for posts | Not built — needs a decision first, see ROADMAP |
+| Species communities | Not built — `speciesSlug` and its index are ready |
+| Product reviews | Not built |
+| Bait reviews | Not built |
+| YouTube integration | Not built |
+
+### Phase 3 — Engagement · 1 of 9
+
+| Feature | State |
+| --- | --- |
+| New product / limited-edition notifications | **Done** (the announcement system) |
+| Fishing challenges | Not built — `posts.challengeId` is ready |
+| Online tournaments | Not built — `posts.tournamentId` is ready |
+| Leaderboards | Not built — the counters they rank on exist |
+| Badges and achievements | Not built |
+| Points / rewards | Not built — `users.points` is ready |
+| Event calendar | Not built |
+| Fishing tips and articles | Not built |
+| Featured products on home | Not built |
+
+### Phase 4 — Admin dashboard & moderation · enforcement only
+
+There is **no dashboard**. What exists is the server-side enforcement it will
+sit on top of, which is the part that has to be right first.
+
+| Feature | State |
+| --- | --- |
+| Review pending posts | **Done** — the Phase 1 queue, not a full dashboard |
+| Send push to all users | **Done** — the announcement composer |
+| Delete posts and comments | **Done** — from the post screen |
+| Suspend / ban a user | **Enforced** — no UI; works from the Firebase console |
+| Feature a post on home | **Enforced** — no UI; works from the Firebase console |
+| User counts, active users, analytics | Not built — Analytics needs enabling |
+| Manage users (edit, delete) | Not built |
+| Segmented push | Not built |
+| Manage tournaments, challenges, badges | Not built |
+| Add / edit articles | Not built |
+| Remote config | Not built |
+| **User reporting** | Not built — **required by Apple before submission** |
+| **User blocking** | Not built — **required by Apple before submission** |
+| Flagged-post review | Not built |
+| Appeals | Not built |
+| AI moderation | Not built |
+
+> **Before the first App Store submission:** Apple's guideline 1.2 requires
+> UGC apps to have content filtering, user reporting, user blocking, and
+> published contact info. Two of the four exist. Reporting and blocking are
+> listed under Phase 4 but are a submission blocker — see
+> [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+---
 
 Every push runs typecheck, lint, unit tests, an iOS/Android/web bundle, the
 Cloud Functions build, and the security rules tests — see
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml). None of it needs
 credentials.
+
+> **Nothing here has been run against a live Firebase project or a real
+> Shopify store.** It typechecks, bundles for iOS/Android/web, and passes 65
+> tests, but no screen has yet talked to a real backend. That's the next
+> milestone, and it needs `docs/SETUP.md` §1–3.
 
 ## Commands
 
