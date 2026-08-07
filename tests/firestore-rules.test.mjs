@@ -620,3 +620,151 @@ test('only an admin can feature a post on the home page', async () => {
     setDoc(doc(asAngler(), 'posts', 'self-featured'), { ...post(ANGLER), featured: true }),
   );
 });
+
+// ---------------------------------------------------------------------------
+// Blocking, reporting, following
+// ---------------------------------------------------------------------------
+
+// An earlier test deletes OTHER's profile. Restore it so these don't depend on
+// the order the suite happens to run in.
+test('restore fixtures for the safety tests', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'users', OTHER), profile(OTHER, 'Newbie'));
+  });
+});
+
+test('a block list is private, and invisible to the person blocked', async () => {
+  await assertSucceeds(
+    setDoc(doc(asAngler(), 'users', ANGLER, 'blocked', OTHER), {
+      uid: OTHER,
+      username: 'other',
+      createdAt: new Date(),
+    }),
+  );
+  // The blocked person must not be able to discover that they were blocked.
+  await assertFails(getDoc(doc(asOther(), 'users', ANGLER, 'blocked', OTHER)));
+  await assertSucceeds(getDoc(doc(asAngler(), 'users', ANGLER, 'blocked', OTHER)));
+  await assertFails(
+    setDoc(doc(asOther(), 'users', ANGLER, 'blocked', 'someone'), { uid: 'someone' }),
+  );
+});
+
+function report(reporterId, overrides = {}) {
+  return {
+    schemaVersion: 1,
+    targetType: 'post',
+    targetId: 'approved1',
+    parentId: null,
+    targetOwnerId: ANGLER,
+    reporterId,
+    reason: 'spam',
+    note: 'Nothing to do with fishing',
+    status: 'open',
+    reviewedAt: null,
+    reviewedBy: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+test('anyone can file a report, but only an admin can read the queue', async () => {
+  await assertSucceeds(setDoc(doc(asOther(), 'reports', 'r1'), report(OTHER)));
+
+  // The whole point: a reporter must not be able to see reports, or the
+  // system leaks who reported whom.
+  await assertFails(getDoc(doc(asOther(), 'reports', 'r1')));
+  await assertFails(getDocs(query(collection(asOther(), 'reports'), limit(10))));
+  await assertSucceeds(getDoc(doc(asOwner(), 'reports', 'r1')));
+});
+
+test('a report cannot be filed on your own content or pre-resolved', async () => {
+  await assertFails(
+    setDoc(doc(asAngler(), 'reports', 'r-self'), report(ANGLER, {})),
+  );
+  await assertFails(
+    setDoc(doc(asOther(), 'reports', 'r-resolved'), {
+      ...report(OTHER),
+      status: 'dismissed',
+    }),
+  );
+  await assertFails(
+    setDoc(doc(asOther(), 'reports', 'r-signed'), {
+      ...report(OTHER),
+      reviewedBy: OWNER,
+    }),
+  );
+});
+
+test('only an admin can resolve a report, and not edit its substance', async () => {
+  await assertFails(
+    updateDoc(doc(asOther(), 'reports', 'r1'), { status: 'dismissed' }),
+  );
+  await assertFails(
+    updateDoc(doc(asOwner(), 'reports', 'r1'), { reason: 'hate', updatedAt: new Date() }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'reports', 'r1'), {
+      status: 'actioned',
+      reviewedAt: new Date(),
+      reviewedBy: OWNER,
+      updatedAt: new Date(),
+    }),
+  );
+});
+
+test('a follow edge can only be created by the follower, with a matching id', async () => {
+  await assertSucceeds(
+    setDoc(doc(asOther(), 'follows', `${OTHER}_${ANGLER}`), {
+      followerId: OTHER,
+      followingId: ANGLER,
+      createdAt: new Date(),
+    }),
+  );
+
+  // Claiming somebody else follows you would inflate their following count.
+  await assertFails(
+    setDoc(doc(asOther(), 'follows', `${ANGLER}_${OTHER}`), {
+      followerId: ANGLER,
+      followingId: OTHER,
+      createdAt: new Date(),
+    }),
+  );
+
+  // A document id that disagrees with its contents would let one edge be
+  // written many times over under different keys.
+  await assertFails(
+    setDoc(doc(asOther(), 'follows', 'made-up-id'), {
+      followerId: OTHER,
+      followingId: ANGLER,
+      createdAt: new Date(),
+    }),
+  );
+
+  await assertFails(
+    setDoc(doc(asOther(), 'follows', `${OTHER}_${OTHER}`), {
+      followerId: OTHER,
+      followingId: OTHER,
+      createdAt: new Date(),
+    }),
+  );
+});
+
+test('both sides of a follow can remove it, and nobody can edit one', async () => {
+  await assertFails(
+    updateDoc(doc(asOther(), 'follows', `${OTHER}_${ANGLER}`), { followingId: OWNER }),
+  );
+  // The followed person removing a follower is a normal thing to want.
+  await assertSucceeds(deleteDoc(doc(asAngler(), 'follows', `${OTHER}_${ANGLER}`)));
+});
+
+test('a banned account cannot follow or report', async () => {
+  const banned = env.authenticatedContext(BANNED).firestore();
+  await assertFails(
+    setDoc(doc(banned, 'follows', `${BANNED}_${ANGLER}`), {
+      followerId: BANNED,
+      followingId: ANGLER,
+      createdAt: new Date(),
+    }),
+  );
+  await assertFails(setDoc(doc(banned, 'reports', 'r-banned'), report(BANNED)));
+});

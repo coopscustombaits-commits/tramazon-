@@ -12,6 +12,9 @@ export const paths = {
   userWishlist: (uid: string) => `users/${uid}/wishlist`,
   userWishlistItem: (uid: string, productId: string) =>
     `users/${uid}/wishlist/${productId}`,
+  userBlocked: (uid: string) => `users/${uid}/blocked`,
+  userBlockedUser: (uid: string, blockedUid: string) =>
+    `users/${uid}/blocked/${blockedUid}`,
   userOrders: (uid: string) => `users/${uid}/orders`,
   userOrder: (uid: string, orderId: string) => `users/${uid}/orders/${orderId}`,
 
@@ -20,6 +23,14 @@ export const paths = {
 
   admins: 'admins',
   admin: (uid: string) => `admins/${uid}`,
+
+  reports: 'reports',
+  report: (id: string) => `reports/${id}`,
+
+  follows: 'follows',
+  /** Deterministic id so following twice is idempotent. */
+  follow: (followerId: string, followingId: string) =>
+    `follows/${followerId}_${followingId}`,
 
   announcements: 'announcements',
   announcement: (id: string) => `announcements/${id}`,

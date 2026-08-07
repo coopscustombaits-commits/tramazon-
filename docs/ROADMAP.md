@@ -18,17 +18,14 @@ all four of:**
 
 1. A method for filtering objectionable material — ✅ every post is reviewed
    before it is public.
-2. A mechanism for users to **report** offensive content — ❌ not built.
-3. The ability for users to **block** abusive users — ❌ not built.
+2. A mechanism for users to **report** offensive content — ✅ built.
+3. The ability for users to **block** abusive users — ✅ built.
 4. Published contact information — ✅ the Contact & support page.
 
 Google Play's User Generated Content policy asks for much the same.
 
-Reporting and blocking are on the Phase 4 list, but they are a **submission
-blocker, not a nice-to-have** — apps get rejected for missing them. They're
-also small: a `reports` collection, a `users/{uid}/blocked` subcollection, a
-report button on posts and profiles, and a filter on the feed. Worth pulling
-forward ahead of the first submission rather than discovering it in review.
+All four are met. Reporting and blocking were pulled forward out of Phase 4
+because a missing one of these is a rejection, not a feature gap.
 
 ---
 

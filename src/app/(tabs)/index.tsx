@@ -11,6 +11,7 @@ import { Spacing } from '@/constants/theme';
 import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useUnreadNotifications } from '@/hooks/use-unread-notifications';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useBlocked } from '@/lib/db/blocked-context';
 import { fetchFeedPage, type PostPage } from '@/lib/db/posts';
 import type { Post } from '@/types/models';
 
@@ -21,6 +22,7 @@ export default function FeedScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const unread = useUnreadNotifications(user?.uid ?? null);
+  const { filterBlocked } = useBlocked();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [cursor, setCursor] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
@@ -109,7 +111,7 @@ export default function FeedScreen() {
         ]}
       />
       <FlatList
-        data={posts}
+        data={filterBlocked(posts)}
         keyExtractor={(post) => post.id}
         renderItem={({ item }) => (
           <PostCard

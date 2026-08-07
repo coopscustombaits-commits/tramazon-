@@ -125,6 +125,13 @@ export default function SettingsScreen() {
               />
               <Divider />
               <ListRow
+                label="Reports"
+                description="Content flagged by anglers"
+                icon="flag-outline"
+                onPress={() => router.push('/admin/reports')}
+              />
+              <Divider />
+              <ListRow
                 label="Send an announcement"
                 description="Push a message to everyone"
                 icon="megaphone-outline"
@@ -152,6 +159,13 @@ export default function SettingsScreen() {
             label="Privacy & your data"
             icon="lock-closed-outline"
             onPress={() => router.push('/settings/privacy')}
+          />
+          <Divider />
+          <ListRow
+            label="Blocked anglers"
+            description="People whose catches you don't see"
+            icon="hand-left-outline"
+            onPress={() => router.push('/settings/blocked')}
           />
         </Card>
 

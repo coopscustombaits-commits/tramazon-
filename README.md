@@ -80,7 +80,7 @@ Phase 2 or 3 exists as a screen, and the Phase 4 dashboard doesn't exist at all.
 | Phase | Built |
 | --- | --- |
 | **1 — Core app** | Everything |
-| **2 — Community** | 1 of 8 items |
+| **2 — Community** | 2 of 8 items |
 | **3 — Engagement** | 1 of 9 items |
 | **4 — Admin dashboard & moderation** | Enforcement only, no dashboard |
 
@@ -112,14 +112,14 @@ Phase 2 or 3 exists as a screen, and the Phase 4 dashboard doesn't exist at all.
 | Dark mode toggle | Done |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done, covers all four phases |
-| Tests | 30 unit + 35 security rules, all in CI |
+| Tests | 30 unit + 43 security rules, all in CI |
 
 ### Phase 2 — Community · 1 of 8
 
 | Feature | State |
 | --- | --- |
 | Photo **and** video posts | **Done** (built in Phase 1) |
-| Follow / unfollow | Not built |
+| Follow / unfollow | **Done** |
 | Private messaging | Not built |
 | Search for users | Not built |
 | Search for posts | Not built — needs a decision first, see ROADMAP |
@@ -160,17 +160,16 @@ sit on top of, which is the part that has to be right first.
 | Manage tournaments, challenges, badges | Not built |
 | Add / edit articles | Not built |
 | Remote config | Not built |
-| **User reporting** | Not built — **required by Apple before submission** |
-| **User blocking** | Not built — **required by Apple before submission** |
+| **User reporting** | **Done** — report posts, comments, and anglers |
+| **User blocking** | **Done** — block list, feed and comments filtered |
+| Reports queue | **Done** — admin-only, with push alerts |
 | Flagged-post review | Not built |
 | Appeals | Not built |
 | AI moderation | Not built |
 
-> **Before the first App Store submission:** Apple's guideline 1.2 requires
-> UGC apps to have content filtering, user reporting, user blocking, and
-> published contact info. Two of the four exist. Reporting and blocking are
-> listed under Phase 4 but are a submission blocker — see
-> [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> **App Store guideline 1.2 (user-generated content) — all four now met:**
+> content filtering (every post is reviewed), user reporting, user blocking,
+> and published contact info.
 
 ---
 

@@ -1,16 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PostCard } from '@/components/post-card';
+import { ReportSheet } from '@/components/report-sheet';
+import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
 import { Spacing, Typography } from '@/constants/theme';
 import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useBlocked } from '@/lib/db/blocked-context';
+import { followUser, subscribeToIsFollowing, unfollowUser } from '@/lib/db/follows';
 import { fetchApprovedPostsByAuthor } from '@/lib/db/posts';
 import { getUserProfile } from '@/lib/db/users';
 import type { Post, UserProfile } from '@/types/models';
@@ -28,10 +32,20 @@ export default function UserProfileScreen() {
   const { uid } = useLocalSearchParams<{ uid: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { isBlocked, block, unblock } = useBlocked();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [following, setFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
+  const [reporting, setReporting] = useState(false);
+
+  // Live, so the button matches reality if they follow from another screen.
+  useEffect(() => {
+    if (!user || !uid || user.uid === uid) return;
+    return subscribeToIsFollowing(user.uid, uid, setFollowing);
+  }, [user, uid]);
 
   useEffect(() => {
     if (!uid) return;
@@ -60,6 +74,55 @@ export default function UserProfileScreen() {
     };
   }, [uid, user, router]);
 
+  async function toggleFollow() {
+    if (!user || !uid) return;
+    const next = !following;
+    setFollowing(next);
+    setFollowBusy(true);
+    try {
+      if (next) {
+        await followUser(user.uid, uid);
+      } else {
+        await unfollowUser(user.uid, uid);
+      }
+    } catch (error) {
+      setFollowing(!next);
+      console.warn('[user] follow toggle failed', error);
+    } finally {
+      setFollowBusy(false);
+    }
+  }
+
+  function confirmBlock() {
+    if (!profile) return;
+    const blocked = isBlocked(profile.uid);
+
+    Alert.alert(
+      blocked ? `Unblock ${profile.username}?` : `Block ${profile.username}?`,
+      blocked
+        ? 'Their catches and comments will show up again.'
+        : "You won't see their catches or comments. They aren't told.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: blocked ? 'Unblock' : 'Block',
+          style: blocked ? 'default' : 'destructive',
+          onPress: async () => {
+            try {
+              if (blocked) {
+                await unblock(profile.uid);
+              } else {
+                await block({ uid: profile.uid, username: profile.username });
+              }
+            } catch (error) {
+              console.warn('[user] block toggle failed', error);
+            }
+          },
+        },
+      ],
+    );
+  }
+
   if (!loaded) return <ScreenLoader />;
 
   if (!profile) {
@@ -76,7 +139,39 @@ export default function UserProfileScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['left', 'right', 'bottom']}>
-      <Stack.Screen options={{ title: profile.username }} />
+      <Stack.Screen
+        options={{
+          title: profile.username,
+          headerRight: () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`More options for ${profile.username}`}
+              hitSlop={8}
+              onPress={() =>
+                Alert.alert(profile.username, undefined, [
+                  { text: 'Report this angler', onPress: () => setReporting(true) },
+                  {
+                    text: isBlocked(profile.uid) ? 'Unblock' : 'Block',
+                    style: isBlocked(profile.uid) ? 'default' : 'destructive',
+                    onPress: confirmBlock,
+                  },
+                  { text: 'Cancel', style: 'cancel' },
+                ])
+              }>
+              <Ionicons name="ellipsis-horizontal" size={22} color={Colors.primary} />
+            </Pressable>
+          ),
+        }}
+      />
+
+      <ReportSheet
+        visible={reporting}
+        onClose={() => setReporting(false)}
+        targetType="user"
+        targetId={profile.uid}
+        targetOwnerId={profile.uid}
+        targetLabel={profile.username}
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Card style={styles.profileCard}>
@@ -97,7 +192,24 @@ export default function UserProfileScreen() {
             <Stat label="Fish logged" value={profile.fishLoggedCount ?? 0} />
             <Stat label="Followers" value={profile.followerCount} />
           </View>
+
+          <Button
+            label={following ? 'Following' : 'Follow'}
+            icon={following ? 'checkmark' : 'person-add-outline'}
+            variant={following ? 'outline' : 'primary'}
+            onPress={toggleFollow}
+            disabled={followBusy}
+          />
         </Card>
+
+        {isBlocked(profile.uid) ? (
+          <Card>
+            <Text style={styles.empty}>
+              You&apos;ve blocked {profile.username}. Their catches are hidden from your
+              feed.
+            </Text>
+          </Card>
+        ) : null}
 
         {posts.length === 0 ? (
           <Card>

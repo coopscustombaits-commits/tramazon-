@@ -219,6 +219,96 @@ export const onCommentDeleted = onDocumentDeleted(
 );
 
 // ---------------------------------------------------------------------------
+// Following
+// ---------------------------------------------------------------------------
+
+export const onFollowCreated = onDocumentCreated('follows/{edgeId}', async (event) => {
+  const edge = event.data?.data();
+  if (!edge?.followerId || !edge?.followingId) return;
+
+  await Promise.all([
+    db()
+      .doc(`users/${edge.followerId}`)
+      .update({ followingCount: FieldValue.increment(1), updatedAt: new Date() })
+      .catch((error) => logger.warn('Could not bump followingCount', { error })),
+    db()
+      .doc(`users/${edge.followingId}`)
+      .update({ followerCount: FieldValue.increment(1), updatedAt: new Date() })
+      .catch((error) => logger.warn('Could not bump followerCount', { error })),
+  ]);
+
+  const follower = await db().doc(`users/${edge.followerId}`).get();
+  await notifyUser(edge.followingId, {
+    type: 'new_follower',
+    title: 'New follower',
+    body: `${follower.get('username') ?? 'An angler'} started following you.`,
+    href: `/user/${edge.followerId}`,
+    data: { followerId: edge.followerId },
+  });
+});
+
+export const onFollowDeleted = onDocumentDeleted('follows/{edgeId}', async (event) => {
+  const edge = event.data?.data();
+  if (!edge?.followerId || !edge?.followingId) return;
+
+  await Promise.all([
+    db()
+      .doc(`users/${edge.followerId}`)
+      .update({ followingCount: FieldValue.increment(-1), updatedAt: new Date() })
+      .catch(() => undefined),
+    db()
+      .doc(`users/${edge.followingId}`)
+      .update({ followerCount: FieldValue.increment(-1), updatedAt: new Date() })
+      .catch(() => undefined),
+  ]);
+});
+
+// ---------------------------------------------------------------------------
+// Reports
+// ---------------------------------------------------------------------------
+
+/**
+ * Somebody flagged something. Tell the admins and, for a post, bump the
+ * counter the dashboard sorts by.
+ *
+ * The push deliberately doesn't name the reporter. Admins can see that in the
+ * queue; a notification is read over shoulders.
+ */
+export const onReportCreated = onDocumentCreated('reports/{reportId}', async (event) => {
+  const report = event.data?.data();
+  if (!report) return;
+
+  if (report.targetType === 'post' && typeof report.targetId === 'string') {
+    await db()
+      .doc(`posts/${report.targetId}`)
+      .update({ reportCount: FieldValue.increment(1), updatedAt: new Date() })
+      .catch((error) => logger.warn('Could not bump reportCount', { error }));
+  }
+
+  const admins = await adminUids();
+  const label: Record<string, string> = {
+    post: 'a catch',
+    comment: 'a comment',
+    user: 'an angler',
+    message: 'a message',
+  };
+
+  await Promise.all(
+    admins.map((uid) =>
+      notifyUser(uid, {
+        type: 'post_needs_review',
+        title: 'Something was reported',
+        body: `Someone reported ${label[report.targetType] ?? 'content'}: ${
+          String(report.reason ?? '').replace(/_/g, ' ')
+        }.`,
+        href: '/admin/reports',
+        data: { reportId: event.params.reportId },
+      }),
+    ),
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Announcements
 // ---------------------------------------------------------------------------
 
@@ -336,11 +426,18 @@ export const onUserDeleted = onDocumentDeleted('users/{uid}', async (event) => {
   // photo, likes, and comments — no need to repeat that work here.
   await Promise.all(posts.docs.map((post) => post.ref.delete()));
 
+  // Follow edges point both ways, so both queries have to run.
+  for (const field of ['followerId', 'followingId']) {
+    const edges = await db().collection('follows').where(field, '==', uid).get();
+    await Promise.all(edges.docs.map((edge) => edge.ref.delete()));
+  }
+
   await Promise.all([
     deleteCollection(`users/${uid}/pushTokens`),
     deleteCollection(`users/${uid}/notifications`),
     deleteCollection(`users/${uid}/private`),
     deleteCollection(`users/${uid}/wishlist`),
+    deleteCollection(`users/${uid}/blocked`),
     // Orders are kept deliberately — Shopify holds the real records for tax
     // and dispute purposes, and deleting our copy wouldn't remove those.
   ]);

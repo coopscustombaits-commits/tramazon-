@@ -14,11 +14,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PostCard } from '@/components/post-card';
+import { ReportSheet } from '@/components/report-sheet';
 import { Avatar } from '@/components/ui/avatar';
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useBlocked } from '@/lib/db/blocked-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 import {
   COMMENT_MAX,
@@ -37,12 +39,17 @@ export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user, profile, isAdmin } = useAuth();
+  const { filterBlocked, isBlocked, block, unblock } = useBlocked();
 
   const [post, setPost] = useState<Post | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [comments, setComments] = useState<PostComment[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  /** What the report sheet is currently pointed at, if open. */
+  const [reportTarget, setReportTarget] = useState<
+    { type: 'post' | 'comment'; id: string; ownerId: string; label: string } | null
+  >(null);
 
   useEffect(() => {
     if (!id) return;
@@ -139,26 +146,82 @@ export default function PostDetailScreen() {
       <Stack.Screen
         options={{
           title: post.author.username,
-          headerRight: canDeletePost
-            ? () => (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Delete post"
-                  hitSlop={8}
-                  onPress={confirmDeletePost}>
-                  <Ionicons name="trash-outline" size={20} color={Colors.danger} />
-                </Pressable>
-              )
-            : undefined,
+          headerRight: () => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Post options"
+              hitSlop={8}
+              onPress={() => {
+                const options: {
+                  text: string;
+                  style?: 'destructive' | 'cancel';
+                  onPress?: () => void;
+                }[] = [];
+
+                if (post.authorId !== user?.uid) {
+                  options.push({
+                    text: 'Report this catch',
+                    onPress: () =>
+                      setReportTarget({
+                        type: 'post',
+                        id: post.id,
+                        ownerId: post.authorId,
+                        label: 'this catch',
+                      }),
+                  });
+                  options.push({
+                    text: isBlocked(post.authorId)
+                      ? `Unblock ${post.author.username}`
+                      : `Block ${post.author.username}`,
+                    style: isBlocked(post.authorId) ? undefined : 'destructive',
+                    onPress: () => {
+                      if (isBlocked(post.authorId)) {
+                        void unblock(post.authorId);
+                      } else {
+                        void block({
+                          uid: post.authorId,
+                          username: post.author.username,
+                        });
+                      }
+                    },
+                  });
+                }
+
+                if (canDeletePost) {
+                  options.push({
+                    text: 'Delete post',
+                    style: 'destructive',
+                    onPress: confirmDeletePost,
+                  });
+                }
+
+                options.push({ text: 'Cancel', style: 'cancel' });
+                Alert.alert(post.author.username, undefined, options);
+              }}>
+              <Ionicons name="ellipsis-horizontal" size={22} color={Colors.primary} />
+            </Pressable>
+          ),
         }}
       />
+
+      {reportTarget ? (
+        <ReportSheet
+          visible
+          onClose={() => setReportTarget(null)}
+          targetType={reportTarget.type}
+          targetId={reportTarget.id}
+          targetOwnerId={reportTarget.ownerId}
+          parentId={reportTarget.type === 'comment' ? post.id : null}
+          targetLabel={reportTarget.label}
+        />
+      ) : null}
 
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
         <FlatList
-          data={comments}
+          data={filterBlocked(comments)}
           keyExtractor={(comment) => comment.id}
           contentContainerStyle={styles.list}
           keyboardShouldPersistTaps="handled"
@@ -181,6 +244,17 @@ export default function PostDetailScreen() {
               canDelete={item.authorId === user?.uid || post.authorId === user?.uid || isAdmin}
               onDelete={() => confirmDeleteComment(item)}
               onPressAuthor={() => router.push(`/user/${item.authorId}`)}
+              onReport={
+                item.authorId === user?.uid
+                  ? undefined
+                  : () =>
+                      setReportTarget({
+                        type: 'comment',
+                        id: item.id,
+                        ownerId: item.authorId,
+                        label: `${item.author.username}'s comment`,
+                      })
+              }
             />
           )}
           ListEmptyComponent={
@@ -226,16 +300,34 @@ function CommentRow({
   canDelete,
   onDelete,
   onPressAuthor,
+  onReport,
 }: {
   comment: PostComment;
   canDelete: boolean;
   onDelete: () => void;
   onPressAuthor: () => void;
+  /** Omitted on your own comments — reporting yourself is meaningless. */
+  onReport?: () => void;
 }) {
   const styles = useStyles();
   return (
     <Pressable
-      onLongPress={canDelete ? onDelete : undefined}
+      accessibilityRole="button"
+      accessibilityHint="Long press for options"
+      onLongPress={() => {
+        const options: {
+          text: string;
+          style?: 'destructive' | 'cancel';
+          onPress?: () => void;
+        }[] = [];
+        if (onReport) options.push({ text: 'Report this comment', onPress: onReport });
+        if (canDelete) {
+          options.push({ text: 'Delete comment', style: 'destructive', onPress: onDelete });
+        }
+        if (options.length === 0) return;
+        options.push({ text: 'Cancel', style: 'cancel' });
+        Alert.alert(comment.author.username, undefined, options);
+      }}
       delayLongPress={400}
       style={styles.comment}>
       <Pressable

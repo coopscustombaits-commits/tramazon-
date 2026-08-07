@@ -55,7 +55,12 @@ service cloud.firestore {
      * would simply skip.
      */
     function accountActive() {
+      // The `exists` check is not redundant: `get()` on a missing document
+      // returns null, and reading `.data` off it is an evaluation error rather
+      // than a clean deny. Someone mid-signup, or whose account was deleted in
+      // another session, hits exactly that path.
       return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         && get(/databases/$(database)/documents/users/$(request.auth.uid))
              .data.accountStatus == 'active';
     }
@@ -121,6 +126,14 @@ service cloud.firestore {
         allow create, delete: if false;
       }
 
+      // users/{uid}/blocked/{blockedUid} — private to the owner.
+      //
+      // Deliberately not readable by the person who was blocked: they are
+      // never told, which is the whole point of a block rather than a ban.
+      match /blocked/{blockedUid} {
+        allow read, write: if isSelf(uid);
+      }
+
       // users/{uid}/wishlist/{productId} — entirely the owner's own list.
       match /wishlist/{productId} {
         allow read, write: if isSelf(uid);
@@ -168,6 +181,62 @@ service cloud.firestore {
       // A user may check whether they themselves are an admin, nothing more.
       allow get: if isSelf(uid);
       allow list, write: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // follows/{followerId}_{followingId}
+    // ---------------------------------------------------------------------
+    match /follows/{edgeId} {
+      // Public so a profile can show follower and following lists.
+      allow read: if isSignedIn();
+
+      // You can only create an edge where you are the follower, and the
+      // document id has to match — otherwise one write could claim any edge.
+      allow create: if accountActive()
+        && request.resource.data.followerId == request.auth.uid
+        && request.resource.data.followingId is string
+        && request.resource.data.followingId != request.auth.uid
+        && edgeId == request.auth.uid + '_' + request.resource.data.followingId;
+
+      // Unfollowing is yours. So is being unfollowed — a user can remove a
+      // follower, which is what "remove follower" means on every other app.
+      allow delete: if isSignedIn() && (
+           resource.data.followerId == request.auth.uid
+           || resource.data.followingId == request.auth.uid
+         );
+
+      // Counters are derived from these edges; editing one would desync them.
+      allow update: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // reports/{reportId}
+    //
+    // A reporter may file one and nothing else. They cannot read the queue,
+    // edit their report, or see the outcome — any of those would reveal who
+    // reported whom, which is exactly what a reporting system must not do.
+    // ---------------------------------------------------------------------
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+
+      allow create: if accountActive()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.targetType in ['post', 'comment', 'user', 'message']
+        && request.resource.data.targetId is string
+        && request.resource.data.targetOwnerId is string
+        // Reporting yourself is meaningless and would only muddy the queue.
+        && request.resource.data.targetOwnerId != request.auth.uid
+        && isValidString(request.resource.data.note, 500)
+        && request.resource.data.status == 'open'
+        && request.resource.data.reviewedAt == null
+        && request.resource.data.reviewedBy == null;
+
+      allow update: if isAdmin()
+        && changedKeys().hasOnly(['status', 'reviewedAt', 'reviewedBy', 'updatedAt'])
+        && request.resource.data.status in ['actioned', 'dismissed']
+        && request.resource.data.reviewedBy == request.auth.uid;
+
+      allow delete: if isAdmin();
     }
 
     // ---------------------------------------------------------------------

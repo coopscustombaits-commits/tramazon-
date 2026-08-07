@@ -11,6 +11,7 @@ import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { navigationHeader } from '@/constants/theme';
 import { ThemeProvider, useTheme, useThemeColors } from '@/constants/theme-context';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
+import { BlockedProvider } from '@/lib/db/blocked-context';
 import { CartProvider } from '@/lib/shopify/cart-context';
 
 void SplashScreen.preventAutoHideAsync();
@@ -23,10 +24,12 @@ export default function RootLayout() {
         <ThemeProvider>
           <ErrorBoundary>
             <AuthProvider>
-              <CartProvider>
-                <ThemedStatusBar />
-                <RootNavigator />
-              </CartProvider>
+              <BlockedProvider>
+                <CartProvider>
+                  <ThemedStatusBar />
+                  <RootNavigator />
+                </CartProvider>
+              </BlockedProvider>
             </AuthProvider>
           </ErrorBoundary>
         </ThemeProvider>
@@ -87,8 +90,10 @@ function RootNavigator() {
         <Stack.Screen name="settings/contact" options={{ title: 'Contact & Support' }} />
         <Stack.Screen name="settings/notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="settings/privacy" options={{ title: 'Privacy & Data' }} />
+        <Stack.Screen name="settings/blocked" options={{ title: 'Blocked Anglers' }} />
         <Stack.Screen name="admin/review" options={{ title: 'Review Queue' }} />
         <Stack.Screen name="admin/announce" options={{ title: 'Announcement' }} />
+        <Stack.Screen name="admin/reports" options={{ title: 'Reports' }} />
         <Stack.Screen name="post/[id]" options={{ title: 'Catch' }} />
         <Stack.Screen name="product/[handle]" options={{ title: 'Product' }} />
         <Stack.Screen name="cart" options={{ title: 'Cart' }} />

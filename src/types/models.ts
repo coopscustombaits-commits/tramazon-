@@ -282,6 +282,80 @@ export type Order = Timestamps & {
 };
 
 // ---------------------------------------------------------------------------
+// Safety: blocking and reporting
+// ---------------------------------------------------------------------------
+
+/**
+ * `users/{uid}/blocked/{blockedUid}` — people this user doesn't want to see.
+ *
+ * Blocking is one-directional and private: the blocked person is never told.
+ * The feed and comment lists filter client-side against this list, because
+ * Firestore can't express "everything except these authors" as a query.
+ */
+export type BlockedUser = {
+  uid: string;
+  /** Kept so the blocked-list screen renders without extra reads. */
+  username: string;
+  createdAt: Timestamp | null;
+};
+
+export type ReportTargetType = 'post' | 'comment' | 'user' | 'message';
+
+export type ReportReason =
+  | 'harassment'
+  | 'hate'
+  | 'nudity'
+  | 'violence'
+  | 'spam'
+  | 'scam'
+  | 'off_topic'
+  | 'other';
+
+export type ReportStatus = 'open' | 'actioned' | 'dismissed';
+
+/**
+ * `reports/{reportId}` — a user flagging something for Coop.
+ *
+ * Readable only by admins. A reporter can create one and nothing else: they
+ * can't read the queue, edit their report, or see what was decided, because
+ * that would leak who reported whom.
+ */
+export type Report = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  targetType: ReportTargetType;
+  /** Post id, comment id, or uid depending on `targetType`. */
+  targetId: string;
+  /** For a comment, the post it lives on. Null otherwise. */
+  parentId: string | null;
+  /** Who owns the reported content, so an admin can act on them directly. */
+  targetOwnerId: string;
+  reporterId: string;
+  reason: ReportReason;
+  note: string;
+  status: ReportStatus;
+  reviewedAt: Timestamp | null;
+  reviewedBy: string | null;
+};
+
+// ---------------------------------------------------------------------------
+// Following
+// ---------------------------------------------------------------------------
+
+/**
+ * `follows/{followerId}_{followingId}` — one document per edge.
+ *
+ * A flat collection rather than subcollections under each user, so a single
+ * query answers both "who do I follow" and "who follows me". The counters on
+ * each profile are maintained by a Cloud Function.
+ */
+export type Follow = {
+  followerId: string;
+  followingId: string;
+  createdAt: Timestamp | null;
+};
+
+// ---------------------------------------------------------------------------
 // Notifications (in-app history; the push itself is sent by Cloud Functions)
 // ---------------------------------------------------------------------------
 
