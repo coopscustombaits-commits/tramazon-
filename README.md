@@ -8,8 +8,12 @@ and photos; Shopify Storefront API for the store.
 ```bash
 npm install
 cp .env.example .env     # then fill it in — see docs/SETUP.md
-npx expo start
+npm start                # or `npm run start:tunnel` from a Chromebook or Codespace
 ```
+
+No Mac or PC? A Chromebook works — either through ChromeOS's Linux environment
+or through GitHub Codespaces entirely in the browser. This repo ships a
+devcontainer so a Codespace sets itself up. See `docs/SETUP.md` §1.
 
 Google sign-in, Apple sign-in, and push notifications are native modules, so
 they need a development build rather than Expo Go:
@@ -95,6 +99,7 @@ credentials.
 
 ```bash
 npm start            # dev server
+npm run start:tunnel # dev server reachable from anywhere (Chromebook, Codespaces)
 npm run ios          # dev server + iOS simulator
 npm run android      # dev server + Android emulator
 npm run typecheck    # tsc --noEmit

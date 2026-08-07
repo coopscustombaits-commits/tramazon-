@@ -1,0 +1,32 @@
+{
+  "name": "Coop's Custom Baits",
+  // Node 22 plus Java, which the Firestore emulator needs for the rules tests.
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "21",
+      "installMaven": false,
+      "installGradle": false
+    }
+  },
+  "postCreateCommand": "npm install && npm install -g eas-cli firebase-tools",
+  "forwardPorts": [8081, 4000, 8080, 9099, 9199],
+  "portsAttributes": {
+    "8081": { "label": "Expo dev server" },
+    "4000": { "label": "Firebase emulator UI" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "expo.vscode-expo-tools",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+  "remoteEnv": {
+    // The dev server runs in the cloud, so a phone can't reach it over the
+    // local network. `npm run start:tunnel` is the way in.
+    "EXPO_NO_TELEMETRY": "1"
+  }
+}

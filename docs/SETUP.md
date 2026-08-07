@@ -11,32 +11,76 @@ email straight away.
 
 ## 1. Get the code running on your computer
 
-Right now the code lives on GitHub. This section gets it onto your machine and
-running. Everything is typed into **Terminal** (Mac: Cmd+Space, type
-"Terminal") or **PowerShell** (Windows: Start menu, type "PowerShell"). The
-commands are identical on both.
+### First: most of this doesn't need a terminal
 
-### 1a. Install Node and Git
+Sections **2, 3, 8 and 9** — the Firebase project, making yourself admin, the
+Shopify token, the store accounts — are all done in a web browser. Any
+computer works, Chromebook included. The security rules can be published by
+pasting them into the Firebase console (section 2 shows both ways).
 
-- **Node.js** — https://nodejs.org, download the **LTS** version, run the
-  installer, accept the defaults.
-- **Git** — Mac: already installed, or run `git --version` and macOS offers to
-  install it. Windows: https://git-scm.com/download/win, accept the defaults.
+A terminal is only needed to **run the app** and to **deploy the Cloud
+Functions**. Two ways to get one.
 
-Close and reopen the terminal, then check both landed:
+### On a Chromebook
+
+**Path A — ChromeOS Linux.** Most Chromebooks from 2019 on can run a real
+Linux terminal:
+
+Settings → **About ChromeOS** → **Developers** → **Linux development
+environment** → Turn on. Give it 10 GB of disk. A terminal window opens when
+it finishes.
+
+Then install Node (Debian's own version is too old):
+
+```bash
+sudo apt update && sudo apt install -y git curl
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+```
+
+Close the terminal, open it again, then:
+
+```bash
+nvm install 22
+node --version    # should say v22.x
+```
+
+If "Linux development environment" isn't in Settings, the Chromebook is either
+too old or managed by a school or workplace that has disabled it. Use Path B.
+
+**Path B — GitHub Codespaces, entirely in the browser.** This runs a real Linux
+machine in the cloud and gives you a terminal in a browser tab. It works on any
+Chromebook, including locked-down ones.
+
+1. Go to the repo on github.com
+2. Green **Code** button → **Codespaces** tab → **Create codespace on
+   `claude/coops-baits-mobile-phase-1-h8fnwd`**
+3. Wait a couple of minutes. It installs everything automatically —
+   `.devcontainer/devcontainer.json` in this repo sets up Node 22, Java, and
+   the Firebase and EAS tools for you.
+
+Free accounts get about 60 hours a month, which is plenty. Skip to
+**section 1c** — steps 1a and 1b are already done for you.
+
+### On a Mac or Windows PC
+
+- **Node.js** — https://nodejs.org, the **LTS** version, accept the defaults.
+- **Git** — Mac: run `git --version` and macOS offers to install it.
+  Windows: https://git-scm.com/download/win.
+
+Open Terminal (Mac: Cmd+Space, type "Terminal") or PowerShell (Windows: Start
+menu, type "PowerShell") and check:
 
 ```bash
 node --version    # want v20 or higher
 git --version
 ```
 
-If either says "command not found", the installer didn't finish or the terminal
-is still the old one — reopen it and try again.
-
 ### 1b. Download the code
 
+Skip this on Codespaces — the code is already there.
+
 ```bash
-cd ~/Documents
+cd ~
 git clone https://github.com/coopscustombaits-commits/tramazon-.git coops-app
 cd coops-app
 git checkout claude/coops-baits-mobile-phase-1-h8fnwd
@@ -46,30 +90,38 @@ npm install
 `npm install` takes a few minutes and prints a wall of text. Warnings are
 normal; only an **error** matters.
 
-From here on, every command in this document is run from inside that
-`coops-app` folder. If you close the terminal, get back with:
-
-```bash
-cd ~/Documents/coops-app
-```
+Every later command runs from inside that folder. If you close the terminal,
+get back with `cd ~/coops-app`.
 
 ### 1c. Two more tools
+
+Skip on Codespaces — already installed.
 
 ```bash
 npm install -g eas-cli firebase-tools
 ```
 
-On Mac these may need `sudo npm install -g eas-cli firebase-tools` — it'll ask
-for your computer password.
+On Mac this may need `sudo` in front, which asks for your computer password.
 
 ### 1d. How you'll run the app
 
-Easiest: **on your own phone**, using the free **Expo Go** app from the App
-Store or Play Store. No Xcode, no Android Studio.
+On **your own phone**, using the free **Expo Go** app from the App Store or
+Play Store. No Xcode, no Android Studio.
 
-(Later, Google sign-in, Apple sign-in, and push notifications need a
-development build instead — section 6. Everything else works in Expo Go, so
-start here.)
+**On Chromebook Linux or Codespaces, use the tunnel:**
+
+```bash
+npm run start:tunnel
+```
+
+Not plain `npm start`. The normal mode expects your phone and the dev server to
+be on the same network. Inside ChromeOS's Linux container — and obviously
+inside a cloud Codespace — they aren't, and the QR code will just hang on
+"Downloading". The tunnel routes through the internet instead and works from
+anywhere, including on cellular data. It's a little slower to reload; that's
+the whole downside.
+
+On a Mac or PC, plain `npm start` is fine.
 
 You'll also want a free **Expo account** at https://expo.dev, then `eas login`.
 
@@ -126,9 +178,11 @@ This is the backend: accounts, database, photo storage.
      roughly nothing. You'll need Blaze anyway for the push notification
      functions in a later step, so this is the moment to add a card.
 
-7. Deploy the security rules from this repo. **Do this before anyone signs
-   up** — until it runs, Firebase's default rules block everything and the app
-   will look broken.
+7. Publish the security rules from this repo. **Do this before anyone signs
+   up** — until it happens, Firebase's default rules block everything and the
+   app will look broken. Two ways; either is fine.
+
+   **From a terminal:**
 
    ```bash
    firebase login
@@ -136,17 +190,34 @@ This is the backend: accounts, database, photo storage.
    firebase deploy --only firestore:rules,firestore:indexes,storage
    ```
 
-   `firebase login` opens a browser to sign in with your Google account.
-   `firebase use --add` asks two questions: pick `coops-custom-baits` from the
-   list (arrow keys, Enter), then type `default` when it asks for an alias.
+   `firebase login` opens a browser to sign in. `firebase use --add` asks two
+   questions: pick `coops-custom-baits` from the list (arrow keys, Enter), then
+   type `default` for the alias.
+
+   **Or entirely in the browser**, no terminal at all:
+
+   - Open [`firestore.rules`](../firestore.rules) on GitHub, click the copy
+     button, then in the Firebase console go to **Firestore Database** →
+     **Rules** tab → select everything in the editor → paste → **Publish**.
+   - Same again with [`storage.rules`](../storage.rules) into **Storage** →
+     **Rules** → **Publish**.
+   - Indexes can wait. Firestore builds simple ones automatically, and the
+     first time a query needs a composite index the app logs an error
+     containing a link that creates it in one click. If you'd rather do it up
+     front, [`firestore.indexes.json`](../firestore.indexes.json) lists the
+     four, and **Firestore → Indexes → Add index** takes the same fields.
+
+   Whichever route you take, re-do it whenever the rules change — they are the
+   only thing stopping someone from publishing straight to the feed.
 
 **You can now run the app.**
 
 ```bash
-npx expo start
+npm run start:tunnel     # on Chromebook Linux or Codespaces
+npm start                # on a Mac or PC
 ```
 
-A QR code appears. Open **Expo Go** on your phone and scan it (iPhone: use the
+A QR code appears (the tunnel takes an extra 20 seconds or so the first time). Open **Expo Go** on your phone and scan it (iPhone: use the
 Camera app; Android: the "Scan QR code" button inside Expo Go). Your phone and
 computer must be on the same Wi-Fi.
 
@@ -156,8 +227,8 @@ sections 4 and 5 — that's expected, not a bug.
 If you get *"Missing EXPO_PUBLIC_FIREBASE_API_KEY"*, the `.env` file wasn't
 found or is incomplete. Check it's named exactly `.env` (not `.env.txt`), sits
 in the `coops-app` folder, then stop the server with Ctrl+C and restart with
-`npx expo start -c`. The `-c` clears a cache that otherwise holds the old
-values.
+`npx expo start -c` (add `--tunnel` if that's what you were using). The `-c`
+clears a cache that otherwise holds the old values.
 
 ---
 
