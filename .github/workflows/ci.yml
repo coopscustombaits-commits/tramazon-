@@ -1,0 +1,90 @@
+name: CI
+
+# Runs on every push and pull request. Nothing here needs Firebase or Shopify
+# credentials — the security rules are tested against the local emulator, and
+# the app only needs placeholder env values to typecheck and bundle.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: App — typecheck, lint, bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Bundle for iOS and Android
+        # Catches anything that typechecks but can't actually be resolved by
+        # Metro — the failure mode that only shows up on a device otherwise.
+        env:
+          EXPO_PUBLIC_FIREBASE_API_KEY: ci-placeholder
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ci.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ci
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: ci.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '000000000000'
+          EXPO_PUBLIC_FIREBASE_APP_ID: '1:000000000000:ios:ci'
+        run: npx expo export --platform all --output-dir /tmp/expo-export
+
+  functions:
+    name: Cloud Functions — build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - run: npm ci
+        working-directory: functions
+
+      - run: npm run build
+        working-directory: functions
+
+  rules:
+    name: Security rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # The Firestore emulator is a Java process.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+
+      - name: Run the rules tests against the emulator
+        run: |
+          npx firebase emulators:exec \
+            --only firestore \
+            --project demo-coops \
+            'npm run test:rules'

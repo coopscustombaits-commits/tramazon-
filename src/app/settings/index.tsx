@@ -75,6 +75,13 @@ export default function SettingsScreen() {
           />
           <Divider />
           <ListRow
+            label="Notifications"
+            description="Choose what you get pinged about"
+            icon="notifications-outline"
+            onPress={() => router.push('/settings/notifications')}
+          />
+          <Divider />
+          <ListRow
             label="Email"
             description={user?.email ?? 'Signed in with Google or Apple'}
             icon="mail-outline"

@@ -368,3 +368,45 @@ test('a post owner can remove a comment left on their catch', async () => {
   // approved1 belongs to ANGLER, the comment to OTHER.
   await assertSucceeds(deleteDoc(doc(asAngler(), 'posts', 'approved1', 'comments', 'rude')));
 });
+
+test('another angler’s public profile query is allowed', async () => {
+  // Exactly what app/user/[uid].tsx runs. It must ask for approved posts:
+  // without that filter the rules refuse the whole query (see above).
+  const publicProfile = query(
+    collection(asOther(), 'posts'),
+    where('authorId', '==', ANGLER),
+    where('status', '==', 'approved'),
+    orderBy('publishedAt', 'desc'),
+    limit(60),
+  );
+  await assertSucceeds(getDocs(publicProfile));
+});
+
+test('you can list your own notification history and nobody else’s', async () => {
+  const own = query(
+    collection(asAngler(), 'users', ANGLER, 'notifications'),
+    orderBy('createdAt', 'desc'),
+    limit(50),
+  );
+  await assertSucceeds(getDocs(own));
+
+  const snoop = query(
+    collection(asOther(), 'users', ANGLER, 'notifications'),
+    orderBy('createdAt', 'desc'),
+    limit(50),
+  );
+  await assertFails(getDocs(snoop));
+});
+
+test('notification preferences are writable only by their owner', async () => {
+  await assertSucceeds(
+    updateDoc(doc(asAngler(), 'users', ANGLER, 'private', 'profile'), {
+      'notificationPrefs.postLiked': false,
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(asOther(), 'users', ANGLER, 'private', 'profile'), {
+      'notificationPrefs.postLiked': false,
+    }),
+  );
+});

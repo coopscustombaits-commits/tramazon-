@@ -17,9 +17,17 @@ type PostCardProps = {
   onPress?: () => void;
   /** Shows the pending/rejected badge — used on your own profile. */
   showStatus?: boolean;
+  /** Tapping the author opens their profile. Omitted where we're already on it. */
+  onPressAuthor?: () => void;
 };
 
-export function PostCard({ post, currentUid, onPress, showStatus = false }: PostCardProps) {
+export function PostCard({
+  post,
+  currentUid,
+  onPress,
+  showStatus = false,
+  onPressAuthor,
+}: PostCardProps) {
   const [liked, setLiked] = useState(false);
   /** Local offset so the count moves the instant you tap, before the Cloud
    * Function has updated `likeCount`. */
@@ -53,14 +61,21 @@ export function PostCard({ post, currentUid, onPress, showStatus = false }: Post
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Avatar uri={post.author.photoURL} name={post.author.username} size={36} />
-        <View style={styles.headerText}>
-          <Text style={styles.username}>{post.author.username}</Text>
-          <Text style={styles.timestamp}>
-            {shortTimeAgo(post.publishedAt ?? post.createdAt)}
-            {post.species ? ` · ${post.species}` : ''}
-          </Text>
-        </View>
+        <Pressable
+          accessibilityRole={onPressAuthor ? 'button' : undefined}
+          accessibilityLabel={onPressAuthor ? `${post.author.username}'s profile` : undefined}
+          onPress={onPressAuthor}
+          disabled={!onPressAuthor}
+          style={styles.author}>
+          <Avatar uri={post.author.photoURL} name={post.author.username} size={36} />
+          <View style={styles.headerText}>
+            <Text style={styles.username}>{post.author.username}</Text>
+            <Text style={styles.timestamp}>
+              {shortTimeAgo(post.publishedAt ?? post.createdAt)}
+              {post.species ? ` · ${post.species}` : ''}
+            </Text>
+          </View>
+        </Pressable>
         {showStatus && post.status !== 'approved' ? (
           <Badge
             label={post.status === 'pending' ? 'In review' : 'Not approved'}
@@ -131,6 +146,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
     padding: Spacing.md,
+  },
+  author: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
   },
   headerText: {
     flex: 1,

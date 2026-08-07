@@ -120,11 +120,14 @@ export default function ShopScreen() {
     <Screen padded={false}>
       <AppHeader
         title="Shop"
-        action={{
-          icon: itemCount > 0 ? 'bag-handle' : 'bag-handle-outline',
-          label: `Cart, ${itemCount} items`,
-          onPress: () => router.push('/cart'),
-        }}
+        actions={[
+          {
+            icon: itemCount > 0 ? 'bag-handle' : 'bag-handle-outline',
+            label: `Cart, ${itemCount} items`,
+            badge: itemCount,
+            onPress: () => router.push('/cart'),
+          },
+        ]}
       />
 
       <FlatList

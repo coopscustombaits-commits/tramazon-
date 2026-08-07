@@ -8,6 +8,7 @@ import { PostCard } from '@/components/post-card';
 import { Button } from '@/components/ui/button';
 import { EmptyState, Screen, ScreenLoader } from '@/components/ui/screen';
 import { Colors, Spacing } from '@/constants/theme';
+import { useUnreadNotifications } from '@/hooks/use-unread-notifications';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchFeedPage, type PostPage } from '@/lib/db/posts';
 import type { Post } from '@/types/models';
@@ -16,6 +17,7 @@ import type { Post } from '@/types/models';
 export default function FeedScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const unread = useUnreadNotifications(user?.uid ?? null);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [cursor, setCursor] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
@@ -92,7 +94,17 @@ export default function FeedScreen() {
 
   return (
     <Screen padded={false}>
-      <AppHeader title="The Feed" />
+      <AppHeader
+        title="The Feed"
+        actions={[
+          {
+            icon: unread > 0 ? 'notifications' : 'notifications-outline',
+            label: unread > 0 ? `Activity, ${unread} unread` : 'Activity',
+            badge: unread,
+            onPress: () => router.push('/notifications'),
+          },
+        ]}
+      />
       <FlatList
         data={posts}
         keyExtractor={(post) => post.id}
@@ -101,6 +113,7 @@ export default function FeedScreen() {
             post={item}
             currentUid={user?.uid ?? ''}
             onPress={() => router.push(`/post/${item.id}`)}
+            onPressAuthor={() => router.push(`/user/${item.authorId}`)}
           />
         )}
         contentContainerStyle={styles.list}

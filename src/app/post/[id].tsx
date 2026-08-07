@@ -162,7 +162,12 @@ export default function PostDetailScreen() {
           keyboardShouldPersistTaps="handled"
           ListHeaderComponent={
             <View style={styles.header}>
-              <PostCard post={post} currentUid={user?.uid ?? ''} showStatus />
+              <PostCard
+                post={post}
+                currentUid={user?.uid ?? ''}
+                showStatus
+                onPressAuthor={() => router.push(`/user/${post.authorId}`)}
+              />
               {post.status === 'approved' ? (
                 <Text style={styles.commentsHeading}>Comments</Text>
               ) : null}
@@ -173,6 +178,7 @@ export default function PostDetailScreen() {
               comment={item}
               canDelete={item.authorId === user?.uid || post.authorId === user?.uid || isAdmin}
               onDelete={() => confirmDeleteComment(item)}
+              onPressAuthor={() => router.push(`/user/${item.authorId}`)}
             />
           )}
           ListEmptyComponent={
@@ -217,17 +223,24 @@ function CommentRow({
   comment,
   canDelete,
   onDelete,
+  onPressAuthor,
 }: {
   comment: PostComment;
   canDelete: boolean;
   onDelete: () => void;
+  onPressAuthor: () => void;
 }) {
   return (
     <Pressable
       onLongPress={canDelete ? onDelete : undefined}
       delayLongPress={400}
       style={styles.comment}>
-      <Avatar uri={comment.author.photoURL} name={comment.author.username} size={32} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${comment.author.username}'s profile`}
+        onPress={onPressAuthor}>
+        <Avatar uri={comment.author.photoURL} name={comment.author.username} size={32} />
+      </Pressable>
       <View style={styles.commentBody}>
         <Text style={styles.commentMeta}>
           {comment.author.username}

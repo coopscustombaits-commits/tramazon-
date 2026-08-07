@@ -50,11 +50,13 @@ export default function ProfileScreen() {
     <Screen scroll padded={false} contentContainerStyle={styles.content}>
       <AppHeader
         title="Profile"
-        action={{
-          icon: 'settings-outline',
-          label: 'Settings',
-          onPress: () => router.push('/settings'),
-        }}
+        actions={[
+          {
+            icon: 'settings-outline',
+            label: 'Settings',
+            onPress: () => router.push('/settings'),
+          },
+        ]}
       />
 
       <View style={styles.body}>

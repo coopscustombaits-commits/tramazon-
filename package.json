@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "emulators": "firebase emulators:start --only firestore,auth,storage --project demo-coops",
-    "test:rules": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node --test \"tests/**/*.test.mjs\""
+    "test:rules": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node --test \"tests/**/*.test.mjs\"",
+    "ci": "npm run typecheck && npx eslint . && npm --prefix functions run build && npx firebase emulators:exec --only firestore --project demo-coops \"npm run test:rules\""
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",

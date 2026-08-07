@@ -33,6 +33,8 @@ src/
     settings/             settings, edit profile, about, contact
     admin/                admin-only review queue
     post/[id].tsx         a catch, its likes and comments
+    user/[uid].tsx        another angler's profile
+    notifications.tsx     in-app activity history
     product/[handle].tsx  a product
     cart.tsx              cart and checkout
     complete-profile.tsx  username setup after Google/Apple sign-up
@@ -73,12 +75,19 @@ sign-in buttons hide themselves, the Shop tab says "coming soon").
 | Edit profile | Done |
 | Settings, About, Contact | Done — awaiting real copy |
 | Log out / delete account | Done |
-| Firestore schema + security rules | Done (covers all of Phase 1), 23 rules tests |
+| Firestore schema + security rules | Done (covers all of Phase 1), 26 rules tests |
 | Home feed (photo + caption posts, likes, comments) | Done |
 | Pending → approve/reject review workflow | Done |
 | Admin review queue | Done |
 | Push notifications (review alerts, approval alerts) | Done — deploy functions, `docs/SETUP.md` §7 |
 | Shopify store (products, cart, checkout) | Done — needs credentials from `docs/SETUP.md` §8 |
+| In-app activity feed + notification preferences | Done |
+| Public angler profiles | Done |
+
+Every push runs typecheck, lint, an iOS/Android/web bundle, the Cloud
+Functions build, and the security rules tests — see
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml). None of it needs
+credentials.
 
 ## Commands
 
@@ -92,6 +101,7 @@ npx expo start -c    # clear the Metro cache (do this after editing .env)
 
 npm run emulators    # local Firestore/Auth/Storage, in one terminal...
 npm run test:rules   # ...then the security rules tests in another
+npm run ci           # everything CI runs, in one go
 
 firebase deploy --only firestore:rules,firestore:indexes,storage
 firebase deploy --only functions

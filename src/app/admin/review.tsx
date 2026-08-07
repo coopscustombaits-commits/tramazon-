@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -99,6 +99,7 @@ export default function AdminReviewScreen() {
             busy={busyIds.includes(item.id)}
             onApprove={() => void review(item, 'approve')}
             onReject={() => confirmReject(item)}
+            onPressAuthor={() => router.push(`/user/${item.authorId}`)}
           />
         )}
         ListEmptyComponent={
@@ -117,18 +118,24 @@ function ReviewCard({
   busy,
   onApprove,
   onReject,
+  onPressAuthor,
 }: {
   post: Post;
   busy: boolean;
   onApprove: () => void;
   onReject: () => void;
+  onPressAuthor: () => void;
 }) {
   const aspectRatio =
     post.image.width && post.image.height ? post.image.width / post.image.height : 1;
 
   return (
     <View style={styles.card}>
-      <View style={styles.header}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${post.author.username}'s profile`}
+        onPress={onPressAuthor}
+        style={styles.header}>
         <Avatar uri={post.author.photoURL} name={post.author.username} size={36} />
         <View style={styles.headerText}>
           <Text style={styles.username}>{post.author.username}</Text>
@@ -137,7 +144,7 @@ function ReviewCard({
             {post.species ? ` · ${post.species}` : ''}
           </Text>
         </View>
-      </View>
+      </Pressable>
 
       <Image
         source={{ uri: post.image.url }}

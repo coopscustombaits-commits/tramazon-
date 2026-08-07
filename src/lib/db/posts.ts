@@ -151,6 +151,24 @@ export async function fetchPostsByAuthor(authorId: string): Promise<Post[]> {
 }
 
 /**
+ * Someone else's catches. Approved only — the security rules refuse a query
+ * that could return another user's pending posts, so this filter isn't
+ * cosmetic.
+ */
+export async function fetchApprovedPostsByAuthor(authorId: string): Promise<Post[]> {
+  const snapshot = await getDocs(
+    query(
+      collection(db, paths.posts),
+      where('authorId', '==', authorId),
+      where('status', '==', 'approved'),
+      orderBy('publishedAt', 'desc'),
+      queryLimit(60),
+    ),
+  );
+  return snapshot.docs.map(toPost);
+}
+
+/**
  * The admin review queue, live. Oldest first — whoever posted first should be
  * reviewed first.
  */
