@@ -89,6 +89,23 @@ Functions that already maintain the counters.
 includes `new_follower`, `new_message`, and `badge_earned`, so the push
 handling written for Phase 1 will route them without changes.
 
+## What Cloud Functions own
+
+`functions/src/index.ts` holds everything a client must not be trusted with:
+
+| Trigger | Does |
+| --- | --- |
+| post created | pushes "new catch to review" to every admin |
+| post status changed | pushes "your catch is live" to the author, `postCount` ±1 |
+| post deleted | removes the photo, likes, and comments |
+| like / comment created or deleted | `likeCount` / `commentCount` ±1, notifies the author |
+| profile updated | fans the new username/photo out to that user's posts |
+| `users/{uid}` deleted | cascades: posts, photos, push tokens, notifications |
+
+Counters are only ever written here, with the Admin SDK, which bypasses
+security rules. The rules deny those fields to clients outright, so the numbers
+can't be inflated by a modified app.
+
 ## Indexes
 
 Composite indexes are declared in

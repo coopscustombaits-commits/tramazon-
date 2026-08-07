@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ScreenLoader } from '@/components/ui/screen';
+import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { navigationHeader } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 
@@ -33,7 +34,10 @@ export default function RootLayout() {
  *   signed-in     -> the app
  */
 function RootNavigator() {
-  const { status } = useAuth();
+  const { status, user } = useAuth();
+
+  // Register for push and handle notification taps once signed in.
+  usePushNotifications(status === 'signed-in' ? (user?.uid ?? null) : null);
 
   useEffect(() => {
     if (status !== 'loading') {
@@ -65,6 +69,7 @@ function RootNavigator() {
         <Stack.Screen name="settings/about" options={{ title: 'About' }} />
         <Stack.Screen name="settings/contact" options={{ title: 'Contact & Support' }} />
         <Stack.Screen name="admin/review" options={{ title: 'Review Queue' }} />
+        <Stack.Screen name="post/[id]" options={{ title: 'Catch' }} />
       </Stack.Protected>
     </Stack>
   );

@@ -28,6 +28,7 @@ import {
   suggestUsername,
 } from '@/lib/db/users';
 import { auth } from '@/lib/firebase';
+import { unregisterPushToken } from '@/lib/notifications';
 import type { UserProfile } from '@/types/models';
 
 /**
@@ -211,6 +212,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    // Drop this device's push token first — while we still have permission to
+    // write it — so the next person to use the phone doesn't get their
+    // notifications.
+    const current = auth.currentUser;
+    if (current) await unregisterPushToken(current.uid);
     await signOutFromGoogle();
     await firebaseSignOut(auth);
     setSuggestedUsername(null);

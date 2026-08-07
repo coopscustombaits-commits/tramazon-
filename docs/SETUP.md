@@ -246,7 +246,35 @@ npx expo start --dev-client
 
 ---
 
-## 7. Store accounts (do these before you're in a hurry)
+## 7. Cloud Functions (push notifications)
+
+The notifications — "a catch needs review" to you, "your catch is live" to the
+angler — are sent by Cloud Functions, not by the app. Same for the like and
+comment counts, which are written server-side so nobody can fake them.
+
+```bash
+npm --prefix functions install
+firebase deploy --only functions
+```
+
+First deploy takes a few minutes and asks to enable some Google Cloud APIs —
+say yes. Requires the Blaze plan (section 2, step 6).
+
+Two things to know:
+
+- **You only get the review notification if you've opened the app on your
+  phone.** Push tokens are registered per device at sign-in. If you never sign
+  in on a real phone, there's nothing to notify. Check
+  `users/<your-uid>/pushTokens` in Firestore — there should be a document there.
+- **Push doesn't work in Expo Go or on a simulator.** Real device, development
+  build. If nothing arrives, `firebase functions:log` will say why.
+
+To check the whole loop: post a catch from a second account, and you should get
+a notification within a few seconds. Tapping it opens the review queue.
+
+---
+
+## 8. Store accounts (do these before you're in a hurry)
 
 Neither is needed until you actually publish, but both have waiting periods.
 
@@ -271,3 +299,5 @@ Neither is needed until you actually publish, but both have waiting periods.
       safe in the app; the **Admin API token is not** — don't send me that one.
 - [ ] A logo / app icon if you have one. Right now the icon and splash are
       Expo's placeholder graphics.
+- [ ] A second test account (any email) so you can post a catch and review it
+      from your own account — the queue can't really be tested with one login.

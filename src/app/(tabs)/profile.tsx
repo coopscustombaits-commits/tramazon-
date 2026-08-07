@@ -1,18 +1,46 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
+import { PostCard } from '@/components/post-card';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge, Card } from '@/components/ui/card';
 import { Screen, ScreenLoader } from '@/components/ui/screen';
 import { Colors, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
+import { fetchPostsByAuthor } from '@/lib/db/posts';
+import type { Post } from '@/types/models';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, isAdmin } = useAuth();
+
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const uid = profile?.uid;
+
+  // Refetch whenever the tab comes back into focus, so a catch submitted a
+  // moment ago is already here.
+  useFocusEffect(
+    useCallback(() => {
+      if (!uid) return;
+      let cancelled = false;
+      void fetchPostsByAuthor(uid)
+        .then((result) => {
+          if (!cancelled) setPosts(result);
+        })
+        .catch((error) => console.warn('[profile] could not load posts', error))
+        .finally(() => {
+          if (!cancelled) setLoadingPosts(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [uid]),
+  );
 
   if (!profile) {
     return <ScreenLoader />;
@@ -68,12 +96,29 @@ export default function ProfileScreen() {
           />
         ) : null}
 
-        <Card style={styles.placeholderCard}>
-          <Text style={styles.placeholderTitle}>Your catches</Text>
-          <Text style={styles.placeholderBody}>
-            Posts you&apos;ve shared will show up here once the feed is built.
-          </Text>
-        </Card>
+        <View style={styles.postsSection}>
+          <Text style={styles.postsHeading}>Your catches</Text>
+          {loadingPosts ? (
+            <ActivityIndicator color={Colors.primary} style={styles.postsLoader} />
+          ) : posts.length === 0 ? (
+            <Card style={styles.placeholderCard}>
+              <Text style={styles.placeholderBody}>
+                Nothing yet. Post a photo of your catch and it&apos;ll show up here —
+                pending until Coop approves it.
+              </Text>
+            </Card>
+          ) : (
+            posts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                currentUid={profile.uid}
+                showStatus
+                onPress={() => router.push(`/post/${post.id}`)}
+              />
+            ))
+          )}
+        </View>
       </View>
     </Screen>
   );
@@ -141,11 +186,17 @@ const styles = StyleSheet.create({
   statLabel: {
     ...Typography.caption,
   },
+  postsSection: {
+    gap: Spacing.md,
+  },
+  postsHeading: {
+    ...Typography.label,
+  },
+  postsLoader: {
+    paddingVertical: Spacing.xl,
+  },
   placeholderCard: {
     gap: Spacing.xs,
-  },
-  placeholderTitle: {
-    ...Typography.heading,
   },
   placeholderBody: {
     ...Typography.caption,

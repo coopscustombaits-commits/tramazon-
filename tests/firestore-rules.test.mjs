@@ -15,7 +15,19 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 
 let env;
 
@@ -234,4 +246,125 @@ test('likes and comments only work on approved posts', async () => {
 test('a user can delete their own profile but not another', async () => {
   await assertFails(deleteDoc(doc(asOther(), 'users', ANGLER)));
   await assertSucceeds(deleteDoc(doc(asOther(), 'users', OTHER)));
+});
+
+// ---------------------------------------------------------------------------
+// Queries
+//
+// Firestore evaluates read rules against every document a query returns, so a
+// query that isn't narrow enough fails outright rather than filtering. These
+// cover the exact queries the app issues.
+// ---------------------------------------------------------------------------
+
+test('the feed query (approved, by publishedAt) is allowed', async () => {
+  const feed = query(
+    collection(asOther(), 'posts'),
+    where('status', '==', 'approved'),
+    orderBy('publishedAt', 'desc'),
+    limit(10),
+  );
+  await assertSucceeds(getDocs(feed));
+});
+
+test('a query for all posts, unfiltered, is refused', async () => {
+  await assertFails(getDocs(query(collection(asOther(), 'posts'), limit(10))));
+});
+
+test('a query for someone else’s pending posts is refused', async () => {
+  const snoop = query(
+    collection(asOther(), 'posts'),
+    where('status', '==', 'pending'),
+    orderBy('createdAt', 'asc'),
+    limit(10),
+  );
+  await assertFails(getDocs(snoop));
+  // The same query is what the admin review queue runs.
+  await assertSucceeds(getDocs(query(
+    collection(asOwner(), 'posts'),
+    where('status', '==', 'pending'),
+    orderBy('createdAt', 'asc'),
+    limit(10),
+  )));
+});
+
+test('you can list your own posts in any status', async () => {
+  const mine = query(
+    collection(asAngler(), 'posts'),
+    where('authorId', '==', ANGLER),
+    orderBy('createdAt', 'desc'),
+    limit(60),
+  );
+  await assertSucceeds(getDocs(mine));
+  // ...but not someone else's, since that would expose their pending posts.
+  await assertFails(getDocs(query(
+    collection(asOther(), 'posts'),
+    where('authorId', '==', ANGLER),
+    orderBy('createdAt', 'desc'),
+    limit(60),
+  )));
+});
+
+// ---------------------------------------------------------------------------
+// Push tokens and notifications
+// ---------------------------------------------------------------------------
+
+test('push tokens are writable only by their owner', async () => {
+  const token = 'ExponentPushToken[abc123]';
+  await assertSucceeds(
+    setDoc(doc(asAngler(), 'users', ANGLER, 'pushTokens', token), {
+      token,
+      platform: 'ios',
+      deviceName: 'iPhone',
+      lastSeenAt: new Date(),
+    }),
+  );
+  await assertFails(
+    setDoc(doc(asOther(), 'users', ANGLER, 'pushTokens', token), { token, platform: 'ios' }),
+  );
+  await assertSucceeds(deleteDoc(doc(asAngler(), 'users', ANGLER, 'pushTokens', token)));
+});
+
+test('notifications are readable by their owner, who may only mark them read', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'users', ANGLER, 'notifications', 'n1'), {
+      schemaVersion: 1,
+      type: 'post_approved',
+      title: 'Your catch is live',
+      body: 'Approved',
+      href: '/post/approved1',
+      readAt: null,
+      data: {},
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+
+  await assertFails(getDoc(doc(asOther(), 'users', ANGLER, 'notifications', 'n1')));
+  await assertSucceeds(getDoc(doc(asAngler(), 'users', ANGLER, 'notifications', 'n1')));
+  await assertSucceeds(
+    updateDoc(doc(asAngler(), 'users', ANGLER, 'notifications', 'n1'), { readAt: new Date() }),
+  );
+  // Clients must not be able to fabricate a notification.
+  await assertFails(
+    setDoc(doc(asAngler(), 'users', ANGLER, 'notifications', 'fake'), { type: 'announcement' }),
+  );
+  await assertFails(
+    updateDoc(doc(asAngler(), 'users', ANGLER, 'notifications', 'n1'), { title: 'Changed' }),
+  );
+});
+
+test('a post owner can remove a comment left on their catch', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'posts', 'approved1', 'comments', 'rude'), {
+      schemaVersion: 1,
+      postId: 'approved1',
+      authorId: OTHER,
+      author: { uid: OTHER, username: 'other', photoURL: null },
+      text: 'rude thing',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+  // approved1 belongs to ANGLER, the comment to OTHER.
+  await assertSucceeds(deleteDoc(doc(asAngler(), 'posts', 'approved1', 'comments', 'rude')));
 });

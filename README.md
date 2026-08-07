@@ -32,6 +32,7 @@ src/
     (tabs)/               feed, shop, post, profile
     settings/             settings, edit profile, about, contact
     admin/                admin-only review queue
+    post/[id].tsx         a catch, its likes and comments
     complete-profile.tsx  username setup after Google/Apple sign-up
   components/ui/          buttons, inputs, cards — the design system
   constants/theme.ts      colors, spacing, type scale
@@ -41,8 +42,11 @@ src/
     auth/                 auth context, Google, Apple, error messages
     db/                   Firestore paths and queries
     storage/              image upload
+    notifications.ts      push registration and deep links
+  hooks/                  push notification wiring
   types/models.ts         Firestore document shapes
 
+functions/                Cloud Functions — push notifications and counters
 firestore.rules           who can read and write what — the real enforcement
 storage.rules             photo upload limits
 firestore.indexes.json    composite indexes
@@ -61,10 +65,12 @@ docs/DATA-MODEL.md        why the database is shaped this way
 | Edit profile | Done |
 | Settings, About, Contact | Done — awaiting real copy |
 | Log out / delete account | Done |
-| Firestore schema + security rules | Done (covers all of Phase 1), 16 rules tests |
+| Firestore schema + security rules | Done (covers all of Phase 1), 23 rules tests |
+| Home feed (photo + caption posts, likes, comments) | Done |
+| Pending → approve/reject review workflow | Done |
+| Admin review queue | Done |
+| Push notifications (review alerts, approval alerts) | Done — deploy functions, `docs/SETUP.md` §7 |
 | Shopify store | Not started |
-| Home feed + post review workflow | Not started |
-| Push notifications | Not started |
 
 ## Commands
 
@@ -80,4 +86,30 @@ npm run emulators    # local Firestore/Auth/Storage, in one terminal...
 npm run test:rules   # ...then the security rules tests in another
 
 firebase deploy --only firestore:rules,firestore:indexes,storage
+firebase deploy --only functions
 ```
+
+## How a catch moves through the app
+
+```
+angler posts   ->   status: pending        (nobody else can see it)
+                          |
+                          |  Cloud Function: push to Coop, "new catch to review"
+                          v
+                 admin review queue
+                    /             \
+              approve             reject
+                 |                   |
+       status: approved       status: rejected
+       publishedAt set        leaves the queue, never public
+       push to the angler
+       postCount +1
+                 |
+                 v
+        public feed — likes and comments open
+```
+
+The client can't skip a step. `firestore.rules` refuses to create a post in any
+status but `pending`, and refuses to change that status unless the caller has an
+`admins/{uid}` document. Like and comment counts are written only by Cloud
+Functions, so they can't be inflated from a modified app.
