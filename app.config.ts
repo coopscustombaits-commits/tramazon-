@@ -103,9 +103,5 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // `eas init` fills this in; leaving it here documents where it lands.
       projectId: process.env.EAS_PROJECT_ID,
     },
-    // The uid of the owner account that can approve/reject posts. This is a
-    // convenience for the client UI only — the real check lives in
-    // firestore.rules (`/admins/{uid}` documents).
-    adminUid: process.env.EXPO_PUBLIC_ADMIN_UID,
   },
 });

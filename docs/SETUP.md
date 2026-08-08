@@ -257,10 +257,11 @@ nobody can grant it to themselves.
 
    Save.
 
-5. Open `.env` in a text editor and set `EXPO_PUBLIC_ADMIN_UID` to the same
-   UID. Then restart: Ctrl+C in the terminal, and `npx expo start -c`.
+5. Pull down to refresh, or close and reopen the app. There's nothing to
+   change in `.env` — the app asks Firestore whether your `admins` document
+   exists, so creating it is the entire step.
 
-Reopen the app and go to the Profile tab. You should see an **Admin** badge
+Go to the Profile tab. You should see an **Admin** badge
 under your username and a **Review pending posts** button.
 
 If you don't: the usual cause is a typo in the document ID, or a stray space
