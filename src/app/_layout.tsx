@@ -99,6 +99,8 @@ function RootNavigator() {
         <Stack.Screen name="admin/competitions" options={{ title: 'Challenges' }} />
         <Stack.Screen name="admin/competition-edit" options={{ title: 'Challenge' }} />
         <Stack.Screen name="leaderboard" options={{ title: 'Leaderboard' }} />
+        <Stack.Screen name="events/index" options={{ title: 'Calendar' }} />
+        <Stack.Screen name="admin/events" options={{ title: 'Calendar' }} />
         <Stack.Screen name="admin/badges" options={{ title: 'Badges' }} />
         <Stack.Screen name="compete/index" options={{ title: 'Challenges' }} />
         <Stack.Screen name="compete/[id]" options={{ title: 'Challenge' }} />

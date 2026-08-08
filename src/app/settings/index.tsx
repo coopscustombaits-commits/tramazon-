@@ -113,6 +113,13 @@ export default function SettingsScreen() {
           />
           <Divider />
           <ListRow
+            label="Calendar"
+            description="Tournament dates, drops, and meet-ups"
+            icon="calendar-outline"
+            onPress={() => router.push('/events')}
+          />
+          <Divider />
+          <ListRow
             label="Leaderboard"
             description="Top anglers, and how points work"
             icon="podium-outline"
@@ -167,6 +174,13 @@ export default function SettingsScreen() {
                 description="Content flagged by anglers"
                 icon="flag-outline"
                 onPress={() => router.push('/admin/reports')}
+              />
+              <Divider />
+              <ListRow
+                label="Calendar"
+                description="Add dates anglers should know about"
+                icon="calendar-outline"
+                onPress={() => router.push('/admin/events')}
               />
               <Divider />
               <ListRow

@@ -373,6 +373,31 @@ export type Follow = {
 };
 
 // ---------------------------------------------------------------------------
+// Events — the calendar
+// ---------------------------------------------------------------------------
+
+/** `events/{eventId}` — admin-authored. Tournaments, shop dates, meet-ups. */
+export type CalendarEvent = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  title: string;
+  description: string;
+  /** Free text — "Lake Fork boat ramp". Not geocoded; nobody needs a map. */
+  location: string;
+  startsAt: Timestamp | null;
+  endsAt: Timestamp | null;
+  /** Hides the time and shows only the date. */
+  allDay: boolean;
+  /**
+   * Optional deep link into the app, e.g. `/compete/abc?kind=tournament`, so a
+   * calendar entry for a tournament can open the tournament.
+   */
+  href: string | null;
+  createdBy: string;
+  published: boolean;
+};
+
+// ---------------------------------------------------------------------------
 // Points and badges
 // ---------------------------------------------------------------------------
 

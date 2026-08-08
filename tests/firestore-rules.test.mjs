@@ -1683,3 +1683,88 @@ test('only an admin can delete a badge definition', async () => {
   await assertFails(deleteDoc(doc(asAngler(), 'badges', 'first-catch')));
   await assertSucceeds(deleteDoc(doc(asOwner(), 'badges', 'first-catch')));
 });
+
+// ---------------------------------------------------------------------------
+// Events — the calendar
+// ---------------------------------------------------------------------------
+
+function calendarEvent(createdBy, overrides = {}) {
+  return {
+    schemaVersion: 1,
+    title: 'Fall Bass Classic weigh-in',
+    description: 'Bring your best five.',
+    location: 'Lake Fork boat ramp',
+    startsAt: new Date(Date.now() + 7 * 24 * HOUR),
+    endsAt: null,
+    allDay: true,
+    href: null,
+    createdBy,
+    published: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+test('only an admin can put something on the calendar', async () => {
+  await assertFails(setDoc(doc(asAngler(), 'events', 'sneaky'), calendarEvent(ANGLER)));
+  await assertSucceeds(setDoc(doc(asOwner(), 'events', 'weigh-in'), calendarEvent(OWNER)));
+});
+
+test('an event needs a title and a real date', async () => {
+  await assertFails(
+    setDoc(doc(asOwner(), 'events', 'untitled'), calendarEvent(OWNER, { title: '' })),
+  );
+  await assertFails(
+    setDoc(doc(asOwner(), 'events', 'undated'), calendarEvent(OWNER, { startsAt: null })),
+  );
+  await assertFails(
+    setDoc(
+      doc(asOwner(), 'events', 'stringy'),
+      calendarEvent(OWNER, { startsAt: 'next Tuesday' }),
+    ),
+  );
+});
+
+test('a draft event is invisible to anglers', async () => {
+  await assertSucceeds(
+    setDoc(doc(asOwner(), 'events', 'tentative'), calendarEvent(OWNER, { published: false })),
+  );
+  await assertFails(getDoc(doc(asAngler(), 'events', 'tentative')));
+  await assertSucceeds(getDoc(doc(asAngler(), 'events', 'weigh-in')));
+  await assertFails(getDoc(doc(asGuest(), 'events', 'weigh-in')));
+});
+
+test('the calendar query is allowed; the unfiltered one is admin-only', async () => {
+  await assertSucceeds(getDocs(query(
+    collection(asAngler(), 'events'),
+    where('published', '==', true),
+    where('startsAt', '>=', new Date()),
+    orderBy('startsAt', 'asc'),
+    limit(50),
+  )));
+  // Dropping the published filter would surface Coop's tentative dates.
+  await assertFails(getDocs(query(
+    collection(asAngler(), 'events'),
+    orderBy('startsAt', 'desc'),
+    limit(100),
+  )));
+  await assertSucceeds(getDocs(query(
+    collection(asOwner(), 'events'),
+    orderBy('startsAt', 'desc'),
+    limit(100),
+  )));
+});
+
+test('only an admin can edit or delete an event', async () => {
+  await assertFails(updateDoc(doc(asAngler(), 'events', 'weigh-in'), { title: 'Cancelled' }));
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'events', 'weigh-in'), {
+      title: 'Fall Bass Classic weigh-in (moved)',
+      description: 'Bring your best five.',
+      updatedAt: new Date(),
+    }),
+  );
+  await assertFails(deleteDoc(doc(asAngler(), 'events', 'weigh-in')));
+  await assertSucceeds(deleteDoc(doc(asOwner(), 'events', 'tentative')));
+});

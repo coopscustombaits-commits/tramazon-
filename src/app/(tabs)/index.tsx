@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, View } from 'react-native';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 
 import { AppHeader } from '@/components/app-header';
+import { FeaturedRail } from '@/components/featured-rail';
 import { PostCard } from '@/components/post-card';
 import { Button } from '@/components/ui/button';
 import { EmptyState, Screen, ScreenLoader } from '@/components/ui/screen';
@@ -141,6 +142,10 @@ export default function FeedScreen() {
           />
         )}
         contentContainerStyle={styles.list}
+        // The rail lives in the list header rather than above the FlatList so
+        // it scrolls away with the feed instead of pinning a shop shelf to the
+        // top of the screen.
+        ListHeaderComponent={<FeaturedRail />}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshing={refreshing}
         onRefresh={() => void refresh()}

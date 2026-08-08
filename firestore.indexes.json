@@ -275,6 +275,21 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "comment": "Calendar: published events from a date onwards, soonest first.",
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "published",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startsAt",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

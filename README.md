@@ -45,6 +45,7 @@ src/
     learn/                tips and YouTube videos
     compete/              challenges, tournaments, leaderboards
     leaderboard.tsx       all-time angler ranking
+    events/               the calendar
     search.tsx            search anglers and catches
     species/              per-species hubs
     notifications.tsx     in-app activity history
@@ -77,8 +78,8 @@ docs/ROADMAP.md           how Phases 2-4 fit the existing schema, and what
 
 ## Build status
 
-**Phases 1 and 2 are complete. Phase 3 is over half done, and Phase 4 has its
-enforcement but no dashboard.**
+**Phases 1, 2, and 3 are complete. Phase 4 has its enforcement and several of
+its admin screens, but not the full dashboard.**
 
 Where a later phase isn't built it has at least been *designed for* —
 [`docs/ROADMAP.md`](docs/ROADMAP.md) audits every remaining item against the
@@ -89,7 +90,7 @@ restructuring. That is not the same as being built.
 | --- | --- |
 | **1 — Core app** | Everything |
 | **2 — Community** | Everything |
-| **3 — Engagement** | 7 of 9 items |
+| **3 — Engagement** | Everything |
 | **4 — Admin dashboard & moderation** | Enforcement only, no dashboard |
 
 ---
@@ -120,7 +121,7 @@ restructuring. That is not the same as being built.
 | Dark mode toggle | Done |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done, covers all four phases |
-| Tests | 70 unit + 99 security rules, all in CI |
+| Tests | 82 unit + 104 security rules, all in CI |
 
 ### Phase 2 — Community · complete
 
@@ -136,7 +137,7 @@ restructuring. That is not the same as being built.
 | Bait reviews | **Done** — community reviews of any bait |
 | YouTube integration | **Done** — inline player, id stored not a URL |
 
-### Phase 3 — Engagement · 7 of 9
+### Phase 3 — Engagement · complete
 
 | Feature | State |
 | --- | --- |
@@ -146,9 +147,9 @@ restructuring. That is not the same as being built.
 | Leaderboards | **Done** — a query over posts, not a stored ranking |
 | Badges and achievements | **Done** — data-driven, awarded automatically |
 | Points / rewards | **Done** — with an auditable ledger |
-| Event calendar | Not built |
+| Event calendar | **Done** — admin-authored, links into the app |
 | Fishing tips and articles | **Done** — shares the articles collection |
-| Featured products on home | Not built |
+| Featured products on home | **Done** — a Shopify collection named `featured` |
 
 ### Phase 4 — Admin dashboard & moderation · enforcement only
 

@@ -176,9 +176,9 @@ above things written since.
 | Leaderboards | A query over `posts` — no aggregates needed | **Built** |
 | Badges | `badges` collection + `users/{uid}/badges` | **Built** |
 | Points / rewards | `users.points` ★ + a ledger | **Built** |
-| Event calendar | New `events` collection | Ready |
+| Event calendar | `events` collection | **Built** |
 | Tips and articles | `articles` collection | **Built** |
-| Featured products | A Shopify collection named "Featured" | Ready, no schema |
+| Featured products | A Shopify collection named `featured` | **Built** |
 | Product-drop notifications | — | **Done in Phase 1** |
 
 **Challenges and tournaments.** Posts carry both ★`challengeId` and
@@ -251,6 +251,27 @@ The check runs on profile update, which is also every time a counter moves, so
 badges land without a scheduled job. Awarding hangs off the Cloud Functions that already maintain the
 counters — "first post" and "10 catches logged" are conditions on numbers those
 functions already write. `NotificationType` already includes `badge_earned`.
+
+**Event calendar.** `events/{eventId}`, admin-authored, with the same draft
+rule as articles: unpublished is invisible to everyone but an admin. An event
+can carry an in-app `href`, so a calendar entry for a tournament opens the
+tournament rather than restating it.
+
+The reader-facing list only queries forward from the start of *today*, not from
+right now — an event at 9am is still today's at 2pm, and dropping it
+mid-afternoon reads as a bug. The date maths lives in `lib/calendar.ts`, pure
+and unit tested, because "is this today?" is exactly the sort of thing that
+quietly breaks at midnight, at month boundaries, and at noon (12-hour clocks
+have an off-by-twelve waiting in `hours % 12`).
+
+**Featured products.** No Firestore involved: Coop adds products to a
+collection called `featured` in the Shopify admin, and the shelf at the top of
+the feed reads it by handle. Nothing has to be redeployed to change what's
+featured, and there's no second list to keep in step with the store. The shelf
+renders nothing when the shop isn't configured, when the collection doesn't
+exist, or when it's empty — the feed should not grow a "Featured" heading over
+a blank space, and a store that isn't set up yet shouldn't show anglers an
+error.
 
 **Product-drop notifications.** Already built. The announcement composer in
 Settings → Admin pushes to everyone who hasn't opted out, and

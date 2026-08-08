@@ -51,15 +51,6 @@ service cloud.firestore {
     }
 
     /**
-     * Has `uid` blocked the caller?
-     *
-     * A block list is private — the blocked person is never told, and the read
-     * rule denies them the collection outright. `exists()` inside a rule is
-     * not subject to read rules, so this can enforce the block without ever
-     * exposing it. That's what makes "you can't DM someone who blocked you"
-     * possible without leaking that a block happened: the send just fails.
-     */
-    /**
      * Is this competition accepting entries right now?
      *
      * Checked here and not only in the app, because "the contest closed an
@@ -87,6 +78,15 @@ service cloud.firestore {
       return path('/databases/' + database + '/documents/' + root + '/' + id);
     }
 
+    /**
+     * Has `uid` blocked the caller?
+     *
+     * A block list is private — the blocked person is never told, and the read
+     * rule denies them the collection outright. `exists()` inside a rule is
+     * not subject to read rules, so this can enforce the block without ever
+     * exposing it. That's what makes "you can't DM someone who blocked you"
+     * possible without leaking that a block happened: the send just fails.
+     */
     function hasBlockedMe(uid) {
       return exists(
         /databases/$(database)/documents/users/$(uid)/blocked/$(request.auth.uid)
@@ -280,6 +280,29 @@ service cloud.firestore {
 
       // Counters are derived from these edges; editing one would desync them.
       allow update: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // events/{eventId} — the calendar. Admin-authored, same draft rule as
+    // articles: unpublished is invisible to everyone but an admin.
+    // ---------------------------------------------------------------------
+    match /events/{eventId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.published == true);
+
+      allow create: if isAdmin()
+        && request.resource.data.createdBy == request.auth.uid
+        && isValidString(request.resource.data.title, 100)
+        && request.resource.data.title.size() > 0
+        && isValidString(request.resource.data.description, 2000)
+        && isValidString(request.resource.data.location, 200)
+        && request.resource.data.startsAt is timestamp;
+
+      allow update: if isAdmin()
+        && isValidString(request.resource.data.title, 100)
+        && request.resource.data.title.size() > 0
+        && isValidString(request.resource.data.description, 2000);
+
+      allow delete: if isAdmin();
     }
 
     // ---------------------------------------------------------------------

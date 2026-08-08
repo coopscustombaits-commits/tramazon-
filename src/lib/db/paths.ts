@@ -42,6 +42,9 @@ export const paths = {
   announcements: 'announcements',
   announcement: (id: string) => `announcements/${id}`,
 
+  events: 'events',
+  event: (id: string) => `events/${id}`,
+
   articles: 'articles',
   article: (id: string) => `articles/${id}`,
 
