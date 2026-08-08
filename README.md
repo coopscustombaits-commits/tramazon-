@@ -83,10 +83,12 @@ docs/ROADMAP.md           how Phases 2-4 fit the existing schema, and what
 deeper analytics, which needs Firebase Analytics turned on in the console
 rather than any code.
 
-Where a later phase isn't built it has at least been *designed for* —
-[`docs/ROADMAP.md`](docs/ROADMAP.md) audits every remaining item against the
-database schema, and a few fields were added early so nothing needs
-restructuring. That is not the same as being built.
+[`docs/ROADMAP.md`](docs/ROADMAP.md) explains the decisions behind each phase
+— why the database is shaped the way it is, and what the automated screening
+actually does and doesn't do.
+
+What's left is not code. See **[What Coop still needs to
+do](#what-coop-still-needs-to-do)** at the bottom.
 
 | Phase | Built |
 | --- | --- |
@@ -245,3 +247,45 @@ The client can't skip a step. `firestore.rules` refuses to create a post in any
 status but `pending`, and refuses to change that status unless the caller has an
 `admins/{uid}` document. Like and comment counts are written only by Cloud
 Functions, so they can't be inflated from a modified app.
+
+---
+
+## What Coop still needs to do
+
+None of this is code — it's accounts, credentials, and words only you can
+write. [`docs/SETUP.md`](docs/SETUP.md) walks through each one.
+
+**To run it at all**
+
+1. Create the Firebase project and paste its config into `.env` — §2.
+2. Make yourself an admin: one document, created by hand in the console — §3.
+   Nothing in the app can do this, deliberately.
+3. Publish `firestore.rules` and the indexes — §2.
+
+**To make everything work**
+
+4. Google and Apple sign-in credentials — §4, §5.
+5. `eas build --profile development` — Google, Apple, and push are native
+   modules, so Expo Go can't run them — §6.
+6. Deploy the Cloud Functions. Nothing that counts, notifies, or moderates
+   happens until this is done — §7.
+7. Shopify Storefront token and store domain — §8.
+8. Connect the order webhook so order status goes past "Order placed" — §9.
+9. Apple Developer ($99/yr) and Google Play ($25 once). Both have waiting
+   periods, so start them before you're in a hurry — §10.
+
+**Words and images only you have**
+
+10. The About text and the support email address — `src/constants/content.ts`.
+    There's placeholder copy there now, and it reads like placeholder copy.
+11. A privacy policy URL. Both stores require one before they'll accept a
+    submission.
+12. The app icon and splash image — `assets/`.
+
+**Optional, once you're running**
+
+13. Turn on Firebase Analytics if you want deeper numbers than the dashboard
+    tiles.
+14. Add badges (Dashboard → Badges → *Starter set* is one tap).
+15. Leave automated screening off until you've watched the review queue for a
+    while and seen whether it agrees with you — Dashboard → App Controls.
