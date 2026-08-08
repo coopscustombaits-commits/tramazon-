@@ -1884,3 +1884,116 @@ test('an account cannot be moved into a status that does not exist', async () =>
     }),
   );
 });
+
+// ---------------------------------------------------------------------------
+// Featuring and taking down
+// ---------------------------------------------------------------------------
+
+test('an admin can pin and unpin an approved catch', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'posts', 'pinnable'), post(ANGLER, {
+      status: 'approved',
+      publishedAt: new Date(),
+    }));
+  });
+
+  await assertFails(updateDoc(doc(asAngler(), 'posts', 'pinnable'), { featured: true }));
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'posts', 'pinnable'), { featured: true, updatedAt: new Date() }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'posts', 'pinnable'), { featured: false, updatedAt: new Date() }),
+  );
+});
+
+test('pinning cannot be used to smuggle a status change past review', async () => {
+  // Featuring is a presentation decision; approving is a moderation one. The
+  // rules keep them in separate `allow update` clauses so one write can't be
+  // both.
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'posts', 'smuggle'), post(ANGLER));
+  });
+  await assertFails(
+    updateDoc(doc(asOwner(), 'posts', 'smuggle'), {
+      featured: true,
+      status: 'approved',
+      updatedAt: new Date(),
+    }),
+  );
+});
+
+test('the pinned-catches query is allowed, approved only', async () => {
+  await assertSucceeds(getDocs(query(
+    collection(asAngler(), 'posts'),
+    where('status', '==', 'approved'),
+    where('featured', '==', true),
+    orderBy('publishedAt', 'desc'),
+    limit(5),
+  )));
+  await assertFails(getDocs(query(
+    collection(asAngler(), 'posts'),
+    where('featured', '==', true),
+    orderBy('publishedAt', 'desc'),
+    limit(5),
+  )));
+});
+
+test('an admin can take a live catch down without deleting it', async () => {
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'posts', 'pinnable'), {
+      status: 'rejected',
+      reviewedAt: new Date(),
+      reviewedBy: OWNER,
+      reviewNote: 'Taken down after a report',
+      updatedAt: new Date(),
+    }),
+  );
+});
+
+test('an admin can tombstone a reported message but not rewrite it', async () => {
+  const id = threadId(DM_A, DM_B);
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'conversations', id), thread(DM_A, DM_B));
+    await setDoc(doc(db, 'conversations', id, 'messages', 'reported'), message(DM_A, id, {
+      text: 'Something worth reporting',
+    }));
+  });
+
+  // Reading the thread is what makes reviewing a report possible at all.
+  await assertSucceeds(getDoc(doc(asOwner(), 'conversations', id, 'messages', 'reported')));
+
+  // A tombstone, not an edit: `removedBy` has to be the admin doing it, so
+  // "who took this down" is answerable.
+  await assertFails(
+    updateDoc(doc(asOwner(), 'conversations', id, 'messages', 'reported'), {
+      text: 'Something else entirely',
+      updatedAt: new Date(),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(asOwner(), 'conversations', id, 'messages', 'reported'), {
+      text: '',
+      removedAt: new Date(),
+      removedBy: ANGLER,
+      updatedAt: new Date(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'conversations', id, 'messages', 'reported'), {
+      text: '',
+      removedAt: new Date(),
+      removedBy: OWNER,
+      updatedAt: new Date(),
+    }),
+  );
+  // And a participant still can't do it themselves.
+  await assertFails(
+    updateDoc(doc(asB(), 'conversations', id, 'messages', 'reported'), {
+      text: '',
+      removedAt: new Date(),
+      removedBy: DM_B,
+      updatedAt: new Date(),
+    }),
+  );
+});

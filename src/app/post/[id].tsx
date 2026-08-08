@@ -27,6 +27,8 @@ import {
   addComment,
   deleteComment,
   deletePost,
+  rejectPost,
+  setFeatured,
   subscribeToComments,
   subscribeToPost,
 } from '@/lib/db/posts';
@@ -183,6 +185,44 @@ export default function PostDetailScreen() {
                           username: post.author.username,
                         });
                       }
+                    },
+                  });
+                }
+
+                if (isAdmin && post.status === 'approved') {
+                  options.push({
+                    text: post.featured ? 'Unpin from the feed' : 'Pin to the top of the feed',
+                    onPress: () => {
+                      void setFeatured(post.id, !post.featured).catch((caught: unknown) =>
+                        Alert.alert('Could not change that', authErrorMessage(caught)),
+                      );
+                    },
+                  });
+                  options.push({
+                    // Taking a live catch down without deleting it: the author
+                    // keeps it on their own profile, marked rejected, and the
+                    // post count and points come back off.
+                    text: 'Take down (reject)',
+                    style: 'destructive',
+                    onPress: () => {
+                      Alert.alert(
+                        'Take this catch down?',
+                        'It leaves the feed. The author still sees it on their profile, marked rejected.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Take down',
+                            style: 'destructive',
+                            onPress: () => {
+                              if (!user) return;
+                              void rejectPost(post.id, user.uid, 'Taken down after a report')
+                                .catch((caught: unknown) =>
+                                  Alert.alert('Could not take it down', authErrorMessage(caught)),
+                                );
+                            },
+                          },
+                        ],
+                      );
                     },
                   });
                 }

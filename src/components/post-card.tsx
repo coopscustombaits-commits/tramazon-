@@ -20,6 +20,8 @@ type PostCardProps = {
   showStatus?: boolean;
   /** Tapping the author opens their profile. Omitted where we're already on it. */
   onPressAuthor?: () => void;
+  /** Coop pinned this to the top of the feed. */
+  pinned?: boolean;
 };
 
 export function PostCard({
@@ -28,6 +30,7 @@ export function PostCard({
   onPress,
   showStatus = false,
   onPressAuthor,
+  pinned = false,
 }: PostCardProps) {
   const Colors = useThemeColors();
   const styles = useStyles();
@@ -95,6 +98,7 @@ export function PostCard({
             </Text>
           </View>
         </Pressable>
+        {pinned ? <Badge label="Pinned" tone="approved" /> : null}
         {showStatus && post.status !== 'approved' ? (
           <Badge
             label={post.status === 'pending' ? 'In review' : 'Not approved'}

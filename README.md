@@ -121,7 +121,7 @@ restructuring. That is not the same as being built.
 | Dark mode toggle | Done |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done, covers all four phases |
-| Tests | 82 unit + 110 security rules, all in CI |
+| Tests | 82 unit + 115 security rules, all in CI |
 
 ### Phase 2 — Community · complete
 
@@ -164,7 +164,7 @@ Google's servers where a modified app can't reach them.
 | Send push to all users | **Done** — the announcement composer |
 | Delete posts and comments | **Done** — from the post screen |
 | Suspend / ban a user | **Done** — from the dashboard, with timed suspensions |
-| Feature a post on home | **Enforced** — no UI; works from the Firebase console |
+| Feature a post on home | **Done** — pin from the post screen, pinned first in the feed |
 | User counts and totals | **Done** — dashboard tiles from `stats/global` |
 | Deeper analytics | Not built — Firebase Analytics needs enabling |
 | Manage users | **Done** — search, suspend, ban, reinstate, adjust points |
@@ -176,8 +176,8 @@ Google's servers where a modified app can't reach them.
 | **User reporting** | **Done** — report posts, comments, and anglers |
 | **User blocking** | **Done** — block list, feed and comments filtered |
 | Reports queue | **Done** — admin-only, with push alerts |
-| Moderate reported messages | **Enforced** — admin can read and tombstone; no UI |
-| Flagged-post review | Not built |
+| Moderate reported messages | **Done** — read and remove from the reports queue |
+| Flagged-post review | **Done** — open, take down, or pin from the report |
 | Appeals | Not built |
 | AI moderation | Not built |
 

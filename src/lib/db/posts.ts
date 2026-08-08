@@ -320,6 +320,34 @@ export async function rejectPost(
 }
 
 /**
+ * Pin a catch to the top of the feed, or unpin it.
+ *
+ * Separate from the review workflow deliberately: featuring is a presentation
+ * decision, not a fresh moderation decision, and the security rules keep the
+ * two apart so featuring can't be used to smuggle a status change past review.
+ */
+export async function setFeatured(postId: string, featured: boolean): Promise<void> {
+  await updateDoc(doc(db, paths.post(postId)), {
+    featured,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Featured catches, for the pinned row at the top of the feed. */
+export async function fetchFeaturedPosts(): Promise<Post[]> {
+  const snapshot = await getDocs(
+    query(
+      collection(db, paths.posts),
+      where('status', '==', 'approved'),
+      where('featured', '==', true),
+      orderBy('publishedAt', 'desc'),
+      queryLimit(5),
+    ),
+  );
+  return snapshot.docs.map(toPost);
+}
+
+/**
  * Delete a post and its photo. Available to the author and to admins.
  * Likes and comments underneath it are cleaned up by a Cloud Function —
  * subcollections can't be deleted in one client operation.

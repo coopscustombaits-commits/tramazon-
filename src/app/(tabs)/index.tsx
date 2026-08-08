@@ -15,7 +15,7 @@ import { useUnreadNotifications } from '@/hooks/use-unread-notifications';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useBlocked } from '@/lib/db/blocked-context';
 import { useRemoteConfig } from '@/lib/db/config-context';
-import { fetchFeedPage, type PostPage } from '@/lib/db/posts';
+import { fetchFeaturedPosts, fetchFeedPage, type PostPage } from '@/lib/db/posts';
 import type { Post } from '@/types/models';
 
 /** The public feed — approved catches, newest first. */
@@ -36,6 +36,22 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [featured, setFeatured] = useState<Post[]>([]);
+
+  // Pinned catches, fetched separately and prepended. A single query can't
+  // both pin and paginate, and merging in memory keeps the feed's cursor
+  // logic exactly as it was.
+  useEffect(() => {
+    let cancelled = false;
+    fetchFeaturedPosts()
+      .then((pinned) => {
+        if (!cancelled) setFeatured(pinned);
+      })
+      .catch((caught: unknown) => console.warn('[feed] featured failed', caught));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const applyFirstPage = useCallback((page: PostPage) => {
     setPosts(page.posts);
@@ -133,11 +149,18 @@ export default function FeedScreen() {
         ]}
       />
       <FlatList
-        data={filterBlocked(posts)}
+        // Pinned first, then the ordinary feed with any duplicates removed —
+        // a pinned catch is also an ordinary one, and showing it twice looks
+        // like a bug rather than emphasis.
+        data={filterBlocked([
+          ...featured,
+          ...posts.filter((post) => !featured.some((pin) => pin.id === post.id)),
+        ])}
         keyExtractor={(post) => post.id}
         renderItem={({ item }) => (
           <PostCard
             post={item}
+            pinned={featured.some((pin) => pin.id === item.id)}
             currentUid={user?.uid ?? ''}
             onPress={() => router.push(`/post/${item.id}`)}
             onPressAuthor={() => router.push(`/user/${item.authorId}`)}

@@ -9,6 +9,7 @@ import { Radius, Spacing, Typography } from '@/constants/theme';
 import { makeStyles } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
+import { fetchMessageForReview, removeMessage } from '@/lib/db/messages';
 import { REPORT_REASONS, resolveReport, subscribeToOpenReports } from '@/lib/db/safety';
 import { shortTimeAgo } from '@/lib/format';
 import type { Report } from '@/types/models';
@@ -74,6 +75,55 @@ export default function AdminReportsScreen() {
       router.push(`/post/${report.parentId}`);
     } else if (report.targetType === 'user') {
       router.push(`/user/${report.targetId}`);
+    } else if (report.targetType === 'message' && report.parentId) {
+      void reviewMessage(report);
+    }
+  }
+
+  /**
+   * A reported message can't just be opened — a DM thread is private, and
+   * dropping an admin into it would look, to the two people in it, exactly
+   * like a third participant. Instead the message is fetched on its own and
+   * shown in an alert with the one action that matters.
+   */
+  async function reviewMessage(report: Report) {
+    if (!report.parentId || !user) return;
+    try {
+      const message = await fetchMessageForReview(report.parentId, report.targetId);
+      if (!message) {
+        Alert.alert('Gone', 'That message has already been deleted.');
+        return;
+      }
+      if (message.removedAt) {
+        Alert.alert('Already removed', 'You have already taken this one down.');
+        return;
+      }
+
+      Alert.alert(
+        'Reported message',
+        `"${message.text}"`,
+        [
+          { text: 'Leave it', style: 'cancel' },
+          {
+            text: 'Remove it',
+            style: 'destructive',
+            onPress: () => {
+              void removeMessage(report.parentId!, report.targetId, user.uid)
+                .then(() =>
+                  Alert.alert(
+                    'Removed',
+                    'Both people now see "This message was removed." The thread keeps its shape, so this report stays auditable.',
+                  ),
+                )
+                .catch((error: unknown) =>
+                  Alert.alert('Could not remove it', authErrorMessage(error)),
+                );
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      Alert.alert('Could not read that message', authErrorMessage(error));
     }
   }
 
@@ -103,7 +153,11 @@ export default function AdminReportsScreen() {
               onPress={() => open(item)}
               hitSlop={8}
               style={styles.link}>
-              <Text style={styles.linkLabel}>Open the reported content</Text>
+              <Text style={styles.linkLabel}>
+                {item.targetType === 'message'
+                  ? 'Read the reported message'
+                  : 'Open the reported content'}
+              </Text>
             </Pressable>
 
             <View style={styles.actions}>
@@ -123,8 +177,9 @@ export default function AdminReportsScreen() {
             </View>
 
             <Text style={styles.hint}>
-              Removing the post or suspending the angler is done on their own screen —
-              this just clears the report.
+              {item.targetType === 'message'
+                ? 'Reading the message lets you remove it. Suspending the sender is on Dashboard → Anglers.'
+                : 'Taking the catch down, pinning it, or suspending the angler is done on their own screen — this just clears the report.'}
             </Text>
           </View>
         )}

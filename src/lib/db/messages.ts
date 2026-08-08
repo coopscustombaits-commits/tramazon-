@@ -193,6 +193,43 @@ export async function deleteMessage(id: string, messageId: string): Promise<void
   await deleteDoc(doc(db, paths.conversationMessage(id, messageId)));
 }
 
+/**
+ * Admin: read one message, to review a report about it.
+ *
+ * The rules let an admin read a thread precisely so a reported message can be
+ * looked at. Reading is all they get — an admin cannot send as somebody else.
+ */
+export async function fetchMessageForReview(
+  conversationId: string,
+  messageId: string,
+): Promise<DirectMessage | null> {
+  const snapshot = await getDoc(doc(db, paths.conversationMessage(conversationId, messageId)));
+  return snapshot.exists()
+    ? { ...(snapshot.data() as DirectMessage), id: snapshot.id }
+    : null;
+}
+
+/**
+ * Admin: replace a message with a tombstone.
+ *
+ * Deliberately not a delete. The document stays so the thread doesn't
+ * renumber and so the report it came from stays auditable — "this message was
+ * removed" is a better answer for both people than a message that silently
+ * never existed.
+ */
+export async function removeMessage(
+  conversationId: string,
+  messageId: string,
+  adminUid: string,
+): Promise<void> {
+  await updateDoc(doc(db, paths.conversationMessage(conversationId, messageId)), {
+    text: '',
+    removedAt: serverTimestamp(),
+    removedBy: adminUid,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 /** The other person in a one-to-one thread. */
 export function otherParticipant(
   conversation: Conversation,
