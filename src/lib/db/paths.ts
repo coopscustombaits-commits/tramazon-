@@ -42,6 +42,9 @@ export const paths = {
   announcements: 'announcements',
   announcement: (id: string) => `announcements/${id}`,
 
+  appeals: 'appeals',
+  appeal: (id: string) => `appeals/${id}`,
+
   stats: 'stats',
   globalStats: 'stats/global',
   remoteConfig: 'config/app',

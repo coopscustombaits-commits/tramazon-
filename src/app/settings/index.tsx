@@ -196,6 +196,13 @@ export default function SettingsScreen() {
           />
           <Divider />
           <ListRow
+            label="Your appeals"
+            description="Decisions you've asked Coop to look at again"
+            icon="hand-right-outline"
+            onPress={() => router.push('/appeals')}
+          />
+          <Divider />
+          <ListRow
             label="Blocked anglers"
             description="People whose catches you don't see"
             icon="hand-left-outline"

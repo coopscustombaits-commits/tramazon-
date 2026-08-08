@@ -106,6 +106,13 @@ export default function AdminDashboardScreen() {
           />
           <Divider />
           <ListRow
+            label="Appeals"
+            description="Decisions anglers have asked you to revisit"
+            icon="hand-right-outline"
+            onPress={() => router.push('/admin/appeals')}
+          />
+          <Divider />
+          <ListRow
             label="Anglers"
             description="Find someone, suspend or reinstate"
             icon="people-outline"

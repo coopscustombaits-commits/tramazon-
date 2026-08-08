@@ -566,6 +566,7 @@ test('an order can be recorded but never marked shipped by the client', async ()
 test('only an admin can publish an announcement', async () => {
   const announcement = {
     schemaVersion: 1,
+    segment: 'all',
     title: 'New bait drop',
     body: 'Chartreuse Shad is back.',
     href: null,
@@ -585,6 +586,23 @@ test('only an admin can publish an announcement', async () => {
   // Everyone can read them; nobody can edit one after it has gone out.
   await assertSucceeds(getDoc(doc(asAngler(), 'announcements', 'a1')));
   await assertFails(updateDoc(doc(asOwner(), 'announcements', 'a1'), { title: 'Edited' }));
+
+  // A segment that doesn't exist would silently reach nobody, so it's refused
+  // at write time rather than discovered after the send.
+  await assertFails(
+    setDoc(doc(asOwner(), 'announcements', 'a3'), {
+      ...announcement,
+      createdBy: OWNER,
+      segment: 'people-i-like',
+    }),
+  );
+  await assertSucceeds(
+    setDoc(doc(asOwner(), 'announcements', 'a4'), {
+      ...announcement,
+      createdBy: OWNER,
+      segment: 'customers',
+    }),
+  );
 });
 
 test('an announcement cannot be created pre-marked as sent', async () => {
@@ -593,6 +611,7 @@ test('an announcement cannot be created pre-marked as sent', async () => {
   await assertFails(
     setDoc(doc(asOwner(), 'announcements', 'a2'), {
       schemaVersion: 1,
+      segment: 'all',
       title: 'Sneaky',
       body: 'Should not send',
       href: null,
@@ -1995,5 +2014,145 @@ test('an admin can tombstone a reported message but not rewrite it', async () =>
       removedBy: DM_B,
       updatedAt: new Date(),
     }),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Appeals
+// ---------------------------------------------------------------------------
+
+function appeal(uid, kind, targetId, overrides = {}) {
+  return {
+    schemaVersion: 1,
+    uid,
+    username: 'RiverRat',
+    kind,
+    targetId,
+    message: 'This was a legal fish, nothing against the rules.',
+    status: 'open',
+    decisionNote: null,
+    reviewedAt: null,
+    reviewedBy: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+const appealDocId = (kind, uid, targetId) => `${kind}__${uid}__${targetId}`;
+const ANGLER_APPEAL = appealDocId('post', ANGLER, 'approved1');
+
+test('you can appeal a decision about your own content', async () => {
+  await assertSucceeds(
+    setDoc(doc(asAngler(), 'appeals', ANGLER_APPEAL), appeal(ANGLER, 'post', 'approved1')),
+  );
+});
+
+test('an appeal id has to match who filed it and what about', async () => {
+  // Without this, one write could file an appeal under somebody else's name.
+  await assertFails(
+    setDoc(doc(asAngler(), 'appeals', 'whatever'), appeal(ANGLER, 'post', 'approved1')),
+  );
+  await assertFails(
+    setDoc(
+      doc(asAngler(), 'appeals', appealDocId('post', OTHER, 'approved1')),
+      appeal(OTHER, 'post', 'approved1'),
+    ),
+  );
+});
+
+test('an appeal cannot be filed pre-decided', async () => {
+  const id = appealDocId('post', OTHER, 'approved1');
+  await assertFails(
+    setDoc(doc(asOther(), 'appeals', id), appeal(OTHER, 'post', 'approved1', {
+      status: 'granted',
+    })),
+  );
+  await assertFails(
+    setDoc(doc(asOther(), 'appeals', id), appeal(OTHER, 'post', 'approved1', {
+      decisionNote: 'I already decided this myself',
+    })),
+  );
+  await assertFails(
+    setDoc(doc(asOther(), 'appeals', id), appeal(OTHER, 'post', 'approved1', {
+      reviewedBy: OTHER,
+    })),
+  );
+});
+
+test('you can read your own appeals and nobody else’s', async () => {
+  await assertSucceeds(getDoc(doc(asAngler(), 'appeals', ANGLER_APPEAL)));
+  await assertFails(getDoc(doc(asOther(), 'appeals', ANGLER_APPEAL)));
+  await assertSucceeds(getDoc(doc(asOwner(), 'appeals', ANGLER_APPEAL)));
+
+  await assertSucceeds(getDocs(query(
+    collection(asAngler(), 'appeals'),
+    where('uid', '==', ANGLER),
+    orderBy('createdAt', 'desc'),
+    limit(25),
+  )));
+  // Reading somebody else's appeals, or the whole queue, is admin-only.
+  await assertFails(getDocs(query(
+    collection(asAngler(), 'appeals'),
+    where('uid', '==', OTHER),
+    orderBy('createdAt', 'desc'),
+    limit(25),
+  )));
+  await assertSucceeds(getDocs(query(
+    collection(asOwner(), 'appeals'),
+    where('status', '==', 'open'),
+    orderBy('createdAt', 'asc'),
+    limit(50),
+  )));
+});
+
+test('a suspended or banned account can still appeal', async () => {
+  // The entire point of appeals. This is why the rule deliberately doesn't
+  // use accountActive().
+  const banned = env.authenticatedContext(BANNED).firestore();
+  await assertSucceeds(
+    setDoc(
+      doc(banned, 'appeals', appealDocId('account', BANNED, BANNED)),
+      appeal(BANNED, 'account', BANNED, { username: 'Banned' }),
+    ),
+  );
+});
+
+test('only an admin decides an appeal, and only into a terminal state', async () => {
+  await assertFails(
+    updateDoc(doc(asAngler(), 'appeals', ANGLER_APPEAL), { status: 'granted' }),
+  );
+  await assertFails(
+    updateDoc(doc(asOwner(), 'appeals', ANGLER_APPEAL), {
+      status: 'open',
+      reviewedBy: OWNER,
+      updatedAt: new Date(),
+    }),
+  );
+  // And an admin cannot rewrite what was said in it.
+  await assertFails(
+    updateDoc(doc(asOwner(), 'appeals', ANGLER_APPEAL), {
+      status: 'denied',
+      message: 'Something they never wrote',
+      reviewedBy: OWNER,
+      updatedAt: new Date(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'appeals', ANGLER_APPEAL), {
+      status: 'denied',
+      decisionNote: 'The original decision stands.',
+      reviewedAt: new Date(),
+      reviewedBy: OWNER,
+      updatedAt: new Date(),
+    }),
+  );
+});
+
+test('re-filing cannot wipe a decision that has already been made', async () => {
+  // The id is deterministic so a second tap replaces the first — but only
+  // while nobody has ruled on it.
+  await assertFails(
+    setDoc(doc(asAngler(), 'appeals', ANGLER_APPEAL), appeal(ANGLER, 'post', 'approved1')),
   );
 });

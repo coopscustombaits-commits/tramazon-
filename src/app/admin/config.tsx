@@ -57,6 +57,9 @@ export default function AdminConfigScreen() {
     setSaving(true);
     try {
       await saveRemoteConfig(user.uid, {
+        autoApproveEnabled: config.autoApproveEnabled,
+        autoRejectEnabled: config.autoRejectEnabled,
+        blockedWords: config.blockedWords,
         maintenanceMode: config.maintenanceMode,
         maintenanceMessage: config.maintenanceMessage,
         announcementBanner: config.announcementBanner,
@@ -115,6 +118,47 @@ export default function AdminConfigScreen() {
         value={config.messagingEnabled}
         onValueChange={(value) => set('messagingEnabled', value)}
         disabled={saving}
+      />
+
+      <Text style={styles.sectionHeading}>Automated screening</Text>
+      <Text style={styles.intro}>
+        Every new catch is screened for links, contact details, shouting, and blocked
+        words. The verdict is always recorded; these two switches decide whether it
+        acts on it. Both ship off — a wrong auto-reject is worse than a slow queue, so
+        leave them off until you&apos;ve watched the queue and seen it agree with you.
+      </Text>
+
+      <Toggle
+        label="Auto-approve obvious ones"
+        hint="Publishes a catch with a completely clean caption without waiting for you. Catches with no caption are never auto-approved — nothing has looked at the photo."
+        value={config.autoApproveEnabled}
+        onValueChange={(value) => set('autoApproveEnabled', value)}
+        disabled={saving}
+      />
+
+      <Toggle
+        label="Auto-hold obvious spam"
+        hint="Holds back a caption that trips several checks at once. The angler is told why and can appeal it."
+        value={config.autoRejectEnabled}
+        onValueChange={(value) => set('autoRejectEnabled', value)}
+        disabled={saving}
+        tone="danger"
+      />
+
+      <TextField
+        label="Blocked words (comma separated)"
+        value={config.blockedWords.join(', ')}
+        onChangeText={(value) =>
+          set(
+            'blockedWords',
+            value.split(',').map((word) => word.trim()).filter(Boolean),
+          )
+        }
+        placeholder="scam, crypto, casino"
+        autoCapitalize="none"
+        multiline
+        editable={!saving}
+        hint="Whole words only, so “scam” won’t catch “scampi”. Leave blank for the built-in list."
       />
 
       <TextField
@@ -193,6 +237,7 @@ function Toggle({
 
 const useStyles = makeStyles((Colors) => ({
   intro: { ...Typography.body, color: Colors.textMuted },
+  sectionHeading: { ...Typography.heading, color: Colors.text, marginTop: Spacing.md },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

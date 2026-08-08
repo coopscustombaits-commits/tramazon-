@@ -45,6 +45,7 @@ src/
     learn/                tips and YouTube videos
     compete/              challenges, tournaments, leaderboards
     leaderboard.tsx       all-time angler ranking
+    appeals.tsx           decisions you've asked Coop to revisit
     events/               the calendar
     search.tsx            search anglers and catches
     species/              per-species hubs
@@ -78,8 +79,9 @@ docs/ROADMAP.md           how Phases 2-4 fit the existing schema, and what
 
 ## Build status
 
-**Phases 1, 2, and 3 are complete. Phase 4 has its dashboard; three items
-remain — appeals, AI moderation, and segmented push.**
+**All four phases are built.** The one thing still marked "not built" is
+deeper analytics, which needs Firebase Analytics turned on in the console
+rather than any code.
 
 Where a later phase isn't built it has at least been *designed for* —
 [`docs/ROADMAP.md`](docs/ROADMAP.md) audits every remaining item against the
@@ -91,7 +93,7 @@ restructuring. That is not the same as being built.
 | **1 — Core app** | Everything |
 | **2 — Community** | Everything |
 | **3 — Engagement** | Everything |
-| **4 — Admin dashboard & moderation** | Dashboard done; 3 items left |
+| **4 — Admin dashboard & moderation** | Everything but deeper analytics |
 
 ---
 
@@ -121,7 +123,7 @@ restructuring. That is not the same as being built.
 | Dark mode toggle | Done |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done, covers all four phases |
-| Tests | 82 unit + 115 security rules, all in CI |
+| Tests | 98 unit + 122 security rules, all in CI |
 
 ### Phase 2 — Community · complete
 
@@ -151,7 +153,7 @@ restructuring. That is not the same as being built.
 | Fishing tips and articles | **Done** — shares the articles collection |
 | Featured products on home | **Done** — a Shopify collection named `featured` |
 
-### Phase 4 — Admin dashboard & moderation · 3 items left
+### Phase 4 — Admin dashboard & moderation · complete
 
 The dashboard is at **Settings → Admin → Dashboard**, and it sits on top of the
 server-side enforcement that was built first. Every screen there is a
@@ -166,9 +168,9 @@ Google's servers where a modified app can't reach them.
 | Suspend / ban a user | **Done** — from the dashboard, with timed suspensions |
 | Feature a post on home | **Done** — pin from the post screen, pinned first in the feed |
 | User counts and totals | **Done** — dashboard tiles from `stats/global` |
-| Deeper analytics | Not built — Firebase Analytics needs enabling |
+| Deeper analytics | Not built — needs Firebase Analytics enabled, `docs/SETUP.md` |
 | Manage users | **Done** — search, suspend, ban, reinstate, adjust points |
-| Segmented push | Not built |
+| Segmented push | **Done** — everyone / active / never posted / customers |
 | Manage tournaments and challenges | **Done** — admin editor |
 | Manage badges | **Done** — admin editor, no deploy needed |
 | Add / edit articles | **Done** — admin editor with drafts |
@@ -178,8 +180,8 @@ Google's servers where a modified app can't reach them.
 | Reports queue | **Done** — admin-only, with push alerts |
 | Moderate reported messages | **Done** — read and remove from the reports queue |
 | Flagged-post review | **Done** — open, take down, or pin from the report |
-| Appeals | Not built |
-| AI moderation | Not built |
+| Appeals | **Done** — file from a held-back catch, queue for Coop |
+| Automated screening | **Done** — rules-based, both ends off by default ([what it is](docs/ROADMAP.md#phase-4--admin--moderation)) |
 
 > **App Store guideline 1.2 (user-generated content) — all four now met:**
 > content filtering (every post is reviewed), user reporting, user blocking,

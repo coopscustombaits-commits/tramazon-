@@ -373,6 +373,42 @@ export type Follow = {
 };
 
 // ---------------------------------------------------------------------------
+// Appeals
+// ---------------------------------------------------------------------------
+
+export type AppealKind = 'post' | 'account';
+export type AppealStatus = 'open' | 'granted' | 'denied';
+
+/**
+ * `appeals/{appealId}` — someone disagreeing with a decision.
+ *
+ * Worth having as its own collection rather than a field on the post: an
+ * account suspension has nothing to hang off, and an appeal needs a status of
+ * its own so "we looked at this and said no" is distinguishable from "nobody
+ * has looked yet".
+ *
+ * A user can read their own and nothing else. They cannot edit one after
+ * filing it, and they cannot mark it granted.
+ */
+export type Appeal = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  uid: string;
+  /** Denormalized so the queue renders without a profile read per row. */
+  username: string;
+  kind: AppealKind;
+  /** The post id for a post appeal; the appellant's uid for an account one. */
+  targetId: string;
+  /** What they want to say about it. */
+  message: string;
+  status: AppealStatus;
+  /** Coop's reply, shown back to the appellant. */
+  decisionNote: string | null;
+  reviewedAt: Timestamp | null;
+  reviewedBy: string | null;
+};
+
+// ---------------------------------------------------------------------------
 // Admin: stats and remote config
 // ---------------------------------------------------------------------------
 
@@ -413,6 +449,17 @@ export type RemoteConfig = Timestamps & {
   postingEnabled: boolean;
   /** Lets Coop pause DMs if they become a problem faster than he can moderate. */
   messagingEnabled: boolean;
+
+  /**
+   * Automated pre-screening. Both ends ship off: a wrong auto-reject is worse
+   * than a slow queue, so this starts as a sorter and becomes a gatekeeper
+   * only once Coop has watched it agree with him.
+   */
+  autoApproveEnabled: boolean;
+  autoRejectEnabled: boolean;
+  /** Words that hold a caption back. Editable without a deploy. */
+  blockedWords: string[];
+
   updatedBy: string | null;
 };
 
@@ -746,11 +793,25 @@ export type NotificationType =
  * `announcements/{announcementId}` — an admin-authored message pushed to
  * everyone. Creating one is what triggers the fan-out Cloud Function.
  */
+/**
+ * Who an announcement goes to.
+ *
+ *   all       everyone who hasn't opted out
+ *   posters   anglers with at least one approved catch — the active crew
+ *   quiet     anglers who signed up but never posted, for a nudge
+ *   customers anglers who have placed an order
+ *
+ * Every segment is worked out server-side from data that already exists, so
+ * none of them needed a new field or a tracking system to add.
+ */
+export type AnnouncementSegment = 'all' | 'posters' | 'quiet' | 'customers';
+
 export type Announcement = Timestamps & {
   schemaVersion: number;
   id: string;
   title: string;
   body: string;
+  segment: AnnouncementSegment;
   /** Optional deep link, e.g. `/product/deep-diver`. */
   href: string | null;
   createdBy: string;

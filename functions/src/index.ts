@@ -9,6 +9,7 @@ import {
 } from 'firebase-functions/v2/firestore';
 
 import { adminUids, notifyUser, sendPush, tokensForUser, wantsNotification } from './push';
+import { DEFAULT_BLOCKED_WORDS, decide, labelReason, screenText } from './moderation';
 
 /**
  * Cloud Functions for Coop's Custom Baits.
@@ -49,6 +50,12 @@ export const onPostSubmitted = onDocumentCreated('posts/{postId}', async (event)
   await bumpEntryCounts(post, 1);
   await awardEntryPoints(post);
   await bumpStats({ postCount: 1, pendingPostCount: 1 });
+
+  // Automated pre-screen. May settle the post outright, in which case the
+  // review notification below would be telling admins about a queue entry
+  // that no longer exists.
+  const settled = await preScreen(event.params.postId, post);
+  if (settled) return;
 
   const admins = await adminUids();
   if (admins.length === 0) {
@@ -399,6 +406,97 @@ export const onFollowDeleted = onDocumentDeleted('follows/{edgeId}', async (even
       .catch(() => undefined),
   ]);
 });
+
+// ---------------------------------------------------------------------------
+// Automated pre-screening
+// ---------------------------------------------------------------------------
+
+/**
+ * Screen a new catch's caption, record the verdict, and act on it if Coop has
+ * switched either end on.
+ *
+ * Returns true when the post was settled — approved or rejected outright — so
+ * the caller knows not to send a "needs review" notification for something
+ * that has already left the queue.
+ *
+ * The verdict is always recorded even when neither end is on. That's what
+ * makes turning them on later a decision Coop can make from evidence: he can
+ * look at what the screen *would* have done and see whether it agrees with
+ * him.
+ */
+async function preScreen(
+  postId: string,
+  post: FirebaseFirestore.DocumentData,
+): Promise<boolean> {
+  const config = await db()
+    .doc('config/app')
+    .get()
+    .catch(() => null);
+
+  const words = (config?.get('blockedWords') as string[] | undefined) ?? [];
+  const verdict = screenText(
+    typeof post.caption === 'string' ? post.caption : '',
+    words.length > 0 ? words : DEFAULT_BLOCKED_WORDS,
+  );
+
+  const action = decide(verdict, {
+    autoApprove: config?.get('autoApproveEnabled') === true,
+    autoReject: config?.get('autoRejectEnabled') === true,
+  });
+
+  const moderation = {
+    decidedBy: action === 'review' ? null : 'ai',
+    score: verdict.score,
+    labels: verdict.labels,
+  };
+
+  // Only the photo has been seen by nobody. An empty caption scores clean but
+  // says nothing about the image, so it never auto-approves.
+  const canAutoApprove = action === 'approve' && !verdict.labels.includes('empty');
+
+  if (canAutoApprove) {
+    await db().doc(`posts/${postId}`).update({
+      moderation,
+      status: 'approved',
+      publishedAt: new Date(),
+      reviewedAt: new Date(),
+      reviewedBy: 'auto',
+      updatedAt: new Date(),
+    });
+    return true;
+  }
+
+  if (action === 'reject') {
+    const reason = verdict.labels.map(labelReason).join(', ');
+    await db().doc(`posts/${postId}`).update({
+      moderation,
+      status: 'rejected',
+      reviewedAt: new Date(),
+      reviewedBy: 'auto',
+      reviewNote: `Held back automatically because ${reason}. Tap "Appeal" if that's wrong.`,
+      updatedAt: new Date(),
+    });
+
+    await notifyUser(post.authorId, {
+      type: 'post_rejected',
+      title: 'Your catch was held back',
+      body: `Automatically flagged because ${reason}. You can appeal it.`,
+      href: `/post/${postId}`,
+      data: { postId },
+    });
+    return true;
+  }
+
+  // Left for a human: record what the screen thought, and leave the status
+  // alone. The `onPostReviewed` trigger fires on the status change, not on
+  // this, so nothing double-counts.
+  await db()
+    .doc(`posts/${postId}`)
+    .update({ moderation, updatedAt: new Date() })
+    .catch((error) => logger.warn('Could not record the moderation verdict', { error }));
+
+  return false;
+}
 
 // ---------------------------------------------------------------------------
 // Dashboard stats
@@ -852,6 +950,52 @@ export const onReportResolved = onDocumentUpdated('reports/{reportId}', async (e
  * If the crew ever outgrows that, the loop becomes a paginated task queue
  * without changing anything the app sees.
  */
+/**
+ * Who an announcement goes to.
+ *
+ * Every segment is derived from data that already exists — `postCount` for the
+ * active crew, the orders subcollection for customers — so segmented push
+ * needed no new field and no tracking system, just a filter.
+ *
+ * The customer segment is the expensive one: it costs a read per angler to
+ * find out whether they've ordered. That's fine at this scale and it's the
+ * segment Coop will use least; if it ever isn't, a `hasOrdered` flag written
+ * by the checkout function replaces the loop without changing anything else.
+ */
+async function audienceFor(
+  segment: unknown,
+): Promise<FirebaseFirestore.QueryDocumentSnapshot[]> {
+  const users = db().collection('users');
+
+  if (segment === 'posters') {
+    return (await users.where('postCount', '>', 0).get()).docs;
+  }
+
+  if (segment === 'quiet') {
+    return (await users.where('postCount', '==', 0).get()).docs;
+  }
+
+  if (segment === 'customers') {
+    const all = (await users.select().get()).docs;
+    const flags = await Promise.all(
+      all.map(async (user) => {
+        const orders = await db()
+          .collection(`users/${user.id}/orders`)
+          .limit(1)
+          .get()
+          .catch(() => null);
+        return orders !== null && !orders.empty;
+      }),
+    );
+    return all.filter((_, index) => flags[index]);
+  }
+
+  // 'all', and anything unrecognized — a segment that doesn't parse should
+  // reach everyone rather than nobody, since a silent no-op looks like a bug
+  // that has already cost the send.
+  return (await users.select().get()).docs;
+}
+
 export const onAnnouncementCreated = onDocumentCreated(
   'announcements/{announcementId}',
   async (event) => {
@@ -859,13 +1003,13 @@ export const onAnnouncementCreated = onDocumentCreated(
     if (!announcement || announcement.sentAt) return;
 
     const { announcementId } = event.params;
-    const users = await db().collection('users').select().get();
+    const users = await audienceFor(announcement.segment);
 
     let recipients = 0;
 
     // Batched so one enormous Promise.all doesn't exhaust the instance.
-    for (let index = 0; index < users.docs.length; index += 50) {
-      const batch = users.docs.slice(index, index + 50);
+    for (let index = 0; index < users.length; index += 50) {
+      const batch = users.slice(index, index + 50);
       const results = await Promise.all(
         batch.map(async (user): Promise<number> => {
           if (!(await wantsNotification(user.id, 'announcements'))) return 0;

@@ -305,20 +305,85 @@ deleting it. Neither needs an app release.
 
 | Feature | What it needs | Status |
 | --- | --- | --- |
-| Total / active / new users | Aggregate counters + Analytics | Ready |
-| Manage users: edit, suspend, ban, delete | `users.accountStatus` ★ | **Enforced today** |
-| Review flagged posts | New `reports` collection + `posts.reportCount` ★ | Ready |
+| Total users and post counts | `stats/global`, incremented by functions | **Built** |
+| Manage users: suspend, ban, reinstate | `users.accountStatus` ★ | **Built** |
+| Review flagged posts | `reports` + `posts.reportCount` ★ | **Built** |
 | Review pending posts | — | **Done in Phase 1** |
 | Delete / edit posts and comments | — | **Done in Phase 1** |
 | Send push (all users) | — | **Done in Phase 1** |
-| Send push (segments) | Query users, reuse the same fan-out | Ready |
-| Manage tournaments, challenges, badges | Phase 3 collections | Ready |
-| Feature posts on home page | `posts.featured` ★ | **Enforced today** |
-| Add / edit articles | New `articles` collection | Ready |
-| App analytics | Firebase Analytics | Needs enabling |
-| User-submitted reports | New `reports` collection | Ready |
-| Moderate reported messages | Phase 2 `conversations` + admin read | Ready |
-| Remote config | Firebase Remote Config, or a `config/app` document | Ready |
+| Send push (segments) | A filter over `users`, same fan-out | **Built** |
+| Manage tournaments, challenges, badges | Phase 3 collections | **Built** |
+| Feature posts on home page | `posts.featured` ★ | **Built** |
+| Add / edit articles | `articles` collection | **Built** |
+| Appeals | New `appeals` collection | **Built** |
+| Automated screening | `posts.moderation` ★ + `config/app` | **Built** — read below |
+| Moderate reported messages | `conversations` + admin read | **Built** |
+| Remote config | A `config/app` document | **Built** |
+| Deeper analytics | Firebase Analytics | Needs enabling in the console |
+
+### Automated screening — what it actually is
+
+Worth being exact, because "AI moderation" sets an expectation this doesn't
+meet and shouldn't pretend to.
+
+**What's built:** a rules-based text screen over the caption. It looks for
+links, phone numbers and email addresses, shouting, repeated characters, and a
+blocked-word list Coop edits from App Controls without a deploy. It produces a
+score from 0 to 1 and a list of labels, both stored on the post in
+`moderation` — the field reserved for exactly this since Phase 1.
+
+**What it is not:** it is not a model, and **it does not look at the photo.**
+The image is the substance of a catch post, and nothing automated has examined
+it. That's the honest limit.
+
+**How it ships:** both ends off. The verdict is always recorded, but
+auto-approve and auto-hold are switches in App Controls that start disabled.
+That's deliberate — a wrong auto-reject is worse than a slow queue, so it
+begins life as a sorter that lets Coop compare its judgement against his own,
+and becomes a gatekeeper only once he's satisfied it agrees with him.
+
+Two guards worth knowing. A caption with nothing in it scores clean but is
+never auto-approved, because a clean score says nothing about a photo nobody
+has seen. And blocked words match whole words only — substring matching is how
+"scam" makes "scampi" unpostable.
+
+**The upgrade path.** Real image moderation is Cloud Vision's SafeSearch, or a
+multimodal model, called from `preScreen()` in `functions/src/index.ts`. That
+function already fetches the config, produces a verdict, and acts on it; a
+model call replaces `screenText()` inside it and nothing else changes — not the
+stored shape, not the switches, not the appeal flow. It needs billing enabled
+and an API key in the functions environment, which is why it isn't here: those
+are Coop's to set up, and the plumbing is ready for the day he does.
+
+### Appeals
+
+`appeals/{appealId}`, with the id derived from the kind, the appellant, and
+what it's about. Deterministic on purpose: someone who has just had a catch
+held back will tap "appeal" more than once, and a queue full of the same
+complaint helps nobody — a second filing replaces the first, unless a decision
+has already been made, in which case it's refused.
+
+The rule deliberately does **not** use `accountActive()`. A suspended or banned
+account has to be able to appeal, or the feature means nothing.
+
+Deciding an appeal doesn't undo anything by itself. Granting one about a catch
+still leaves re-approving the catch as its own act. An appeal that silently
+reversed a moderation decision would make "we agreed" and "we changed it"
+impossible to tell apart afterwards, which is the one thing an appeals record
+exists to preserve.
+
+### Segmented push
+
+Four segments — everyone, anglers with at least one approved catch, anglers who
+have never posted, and anglers who have ordered something. Every one is derived
+from data that already existed (`postCount`, the orders subcollection), so
+segmenting needed no new field and no tracking system, just a filter in front
+of the fan-out that was already there.
+
+The customer segment costs a read per angler to work out. Fine at this scale,
+and it's the one Coop will reach for least; if that ever changes, a
+`hasOrdered` flag written at checkout replaces the loop without touching
+anything else.
 
 **Suspend and ban work now.** `accountStatus` is `active`, `suspended`, or
 `banned`, and the security rules refuse post, comment, and like creation from

@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Screen, ScreenLoader } from '@/components/ui/screen';
@@ -12,7 +12,26 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 import { paths } from '@/lib/db/paths';
 import { db } from '@/lib/firebase';
-import { SCHEMA_VERSION } from '@/types/models';
+import { SCHEMA_VERSION, type AnnouncementSegment } from '@/types/models';
+
+/**
+ * Who to send to. Every one of these is worked out server-side from data that
+ * already exists, so segmenting needed no new field and no tracking.
+ */
+const SEGMENTS: { value: AnnouncementSegment; label: string; hint: string }[] = [
+  { value: 'all', label: 'Everyone', hint: 'Every angler with the app.' },
+  {
+    value: 'posters',
+    label: 'Active anglers',
+    hint: 'Anyone with at least one approved catch.',
+  },
+  {
+    value: 'quiet',
+    label: 'Never posted',
+    hint: 'Signed up but never posted — a nudge.',
+  },
+  { value: 'customers', label: 'Customers', hint: 'Anyone who has placed an order.' },
+];
 
 const TITLE_MAX = 100;
 const BODY_MAX = 500;
@@ -32,6 +51,7 @@ export default function AnnounceScreen() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [href, setHref] = useState('');
+  const [segment, setSegment] = useState<AnnouncementSegment>('all');
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
@@ -45,8 +65,8 @@ export default function AnnounceScreen() {
     }
 
     Alert.alert(
-      'Send to everyone?',
-      'This pushes a notification to every angler who has the app installed and hasn’t turned announcements off. It can’t be unsent.',
+      `Send to ${SEGMENTS.find((option) => option.value === segment)?.label.toLowerCase()}?`,
+      'This pushes a notification to everyone in that group who hasn’t turned announcements off. It can’t be unsent.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Send', style: 'destructive', onPress: () => void send() },
@@ -60,6 +80,7 @@ export default function AnnounceScreen() {
     try {
       await addDoc(collection(db, paths.announcements), {
         schemaVersion: SCHEMA_VERSION,
+        segment,
         title: title.trim().slice(0, TITLE_MAX),
         body: body.trim().slice(0, BODY_MAX),
         href: href.trim() || null,
@@ -127,6 +148,31 @@ export default function AnnounceScreen() {
           hint="A path inside the app. Leave blank to just open the app."
         />
 
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Send to</Text>
+          <View style={styles.chips}>
+            {SEGMENTS.map((option) => {
+              const active = segment === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  disabled={sending}
+                  onPress={() => setSegment(option.value)}
+                  style={[styles.chip, active && styles.chipActive]}>
+                  <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={styles.fieldHint}>
+            {SEGMENTS.find((option) => option.value === segment)?.hint}
+          </Text>
+        </View>
+
         <View style={styles.preview}>
           <Text style={styles.previewLabel}>Preview</Text>
           <Text style={styles.previewTitle}>{title.trim() || 'Title'}</Text>
@@ -135,13 +181,32 @@ export default function AnnounceScreen() {
           </Text>
         </View>
 
-        <Button label="Send to everyone" onPress={confirm} loading={sending} />
+        <Button
+          label={`Send to ${SEGMENTS.find((option) => option.value === segment)?.label.toLowerCase()}`}
+          onPress={confirm}
+          loading={sending}
+        />
       </View>
     </Screen>
   );
 }
 
 const useStyles = makeStyles((Colors) => ({
+  field: { gap: Spacing.sm },
+  fieldLabel: { ...Typography.caption, color: Colors.textMuted, fontWeight: '600' },
+  fieldHint: { ...Typography.caption, color: Colors.textMuted },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  chip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  chipActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryTint },
+  chipLabel: { ...Typography.caption, color: Colors.text },
+  chipLabelActive: { color: Colors.primary, fontWeight: '700' },
   form: { gap: Spacing.lg, paddingTop: Spacing.lg },
   heading: { ...Typography.title },
   body: { ...Typography.body, color: Colors.textMuted },

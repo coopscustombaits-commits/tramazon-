@@ -292,6 +292,45 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------------
+    // appeals/{appealId} — someone disagreeing with a decision.
+    //
+    // You can file one about your own content and read your own. You cannot
+    // read the queue, edit an appeal after filing it, or mark it granted —
+    // an appeal you can decide yourself isn't an appeal.
+    // ---------------------------------------------------------------------
+    match /appeals/{appealId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+
+      // Create *or* replace: the id is deterministic, so appealing the same
+      // decision twice overwrites rather than flooding the queue. Suspended
+      // and banned accounts may appeal — that is the entire point of appeals,
+      // so this deliberately does not use `accountActive()`.
+      allow create, update: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && appealId == request.resource.data.kind + '__' + request.auth.uid
+             + '__' + request.resource.data.targetId
+        && request.resource.data.kind in ['post', 'account']
+        && isValidString(request.resource.data.message, 1000)
+        && request.resource.data.message.size() > 0
+        && request.resource.data.status == 'open'
+        && request.resource.data.decisionNote == null
+        && request.resource.data.reviewedBy == null
+        // Re-filing reopens; it must not overwrite a decision that was made.
+        && (!exists(/databases/$(database)/documents/appeals/$(appealId))
+            || resource.data.status == 'open');
+
+      // Only an admin decides, and only into a terminal state.
+      allow update: if isAdmin()
+        && changedKeys().hasOnly([
+             'status', 'decisionNote', 'reviewedAt', 'reviewedBy', 'updatedAt'
+           ])
+        && request.resource.data.status in ['granted', 'denied']
+        && request.resource.data.reviewedBy == request.auth.uid;
+
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------------
     // stats/{id} — dashboard totals, maintained by Cloud Functions.
     //
     // Admin-readable only: these are business numbers, not something anglers
@@ -635,7 +674,8 @@ service cloud.firestore {
         // `sentAt` and `recipientCount` are the Cloud Function's to set — an
         // announcement that claims to have already been sent would never go out.
         && request.resource.data.sentAt == null
-        && request.resource.data.recipientCount == 0;
+        && request.resource.data.recipientCount == 0
+        && request.resource.data.segment in ['all', 'posters', 'quiet', 'customers'];
       // Editing after the push has gone out would leave the two disagreeing.
       allow update: if false;
       allow delete: if isAdmin();

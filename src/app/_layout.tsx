@@ -108,6 +108,8 @@ function RootNavigator() {
         <Stack.Screen name="settings/blocked" options={{ title: 'Blocked Anglers' }} />
         <Stack.Screen name="admin/index" options={{ title: 'Dashboard' }} />
         <Stack.Screen name="admin/users" options={{ title: 'Anglers' }} />
+        <Stack.Screen name="admin/appeals" options={{ title: 'Appeals' }} />
+        <Stack.Screen name="appeals" options={{ title: 'Your Appeals' }} />
         <Stack.Screen name="admin/config" options={{ title: 'App Controls' }} />
         <Stack.Screen name="admin/review" options={{ title: 'Review Queue' }} />
         <Stack.Screen name="admin/announce" options={{ title: 'Announcement' }} />

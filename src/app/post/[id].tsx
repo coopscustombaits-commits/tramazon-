@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PostCard } from '@/components/post-card';
+import { AppealSheet } from '@/components/appeal-sheet';
 import { ReportSheet } from '@/components/report-sheet';
 import { Avatar } from '@/components/ui/avatar';
 import { EmptyState, ScreenLoader } from '@/components/ui/screen';
@@ -49,6 +50,7 @@ export default function PostDetailScreen() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   /** What the report sheet is currently pointed at, if open. */
+  const [appealing, setAppealing] = useState(false);
   const [reportTarget, setReportTarget] = useState<
     { type: 'post' | 'comment'; id: string; ownerId: string; label: string } | null
   >(null);
@@ -141,6 +143,8 @@ export default function PostDetailScreen() {
   }
 
   const canDeletePost = post.authorId === user?.uid || isAdmin;
+  // Only the author, and only once a decision has actually gone against them.
+  const canAppeal = post.authorId === user?.uid && post.status === 'rejected';
   const canComment = post.status === 'approved' && Boolean(profile);
 
   return (
@@ -186,6 +190,13 @@ export default function PostDetailScreen() {
                         });
                       }
                     },
+                  });
+                }
+
+                if (canAppeal) {
+                  options.push({
+                    text: 'Appeal this decision',
+                    onPress: () => setAppealing(true),
                   });
                 }
 
@@ -243,6 +254,16 @@ export default function PostDetailScreen() {
           ),
         }}
       />
+
+      {appealing ? (
+        <AppealSheet
+          visible
+          onClose={() => setAppealing(false)}
+          kind="post"
+          targetId={post.id}
+          what="this catch"
+        />
+      ) : null}
 
       {reportTarget ? (
         <ReportSheet
