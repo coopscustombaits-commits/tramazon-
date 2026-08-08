@@ -1525,3 +1525,161 @@ test('only an admin can declare a winner or delete a competition', async () => {
   await assertFails(deleteDoc(doc(asAngler(), 'challenges', 'topwater')));
   await assertSucceeds(deleteDoc(doc(asOwner(), 'challenges', 'over')));
 });
+
+// ---------------------------------------------------------------------------
+// Points and badges
+// ---------------------------------------------------------------------------
+
+function badge(overrides = {}) {
+  return {
+    schemaVersion: 1,
+    title: 'First Catch',
+    description: 'Posted your first approved catch.',
+    icon: 'fish',
+    metric: 'postCount',
+    threshold: 1,
+    order: 10,
+    published: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+test('only an admin can define a badge', async () => {
+  await assertFails(setDoc(doc(asAngler(), 'badges', 'self-made'), badge()));
+  await assertSucceeds(setDoc(doc(asOwner(), 'badges', 'first-catch'), badge()));
+});
+
+test('a badge definition has to name a real metric and a sane threshold', async () => {
+  await assertFails(
+    setDoc(doc(asOwner(), 'badges', 'bad-metric'), badge({ metric: 'vibes' })),
+  );
+  await assertFails(
+    setDoc(doc(asOwner(), 'badges', 'zero'), badge({ threshold: 0 })),
+  );
+  await assertFails(
+    setDoc(doc(asOwner(), 'badges', 'fractional'), badge({ threshold: 2.5 })),
+  );
+  await assertFails(setDoc(doc(asOwner(), 'badges', 'untitled'), badge({ title: '' })));
+});
+
+test('badge definitions are readable by any signed-in user, not by guests', async () => {
+  await assertSucceeds(getDoc(doc(asAngler(), 'badges', 'first-catch')));
+  await assertFails(getDoc(doc(asGuest(), 'badges', 'first-catch')));
+});
+
+test('nobody can award themselves a badge', async () => {
+  // The award document is what a profile renders. If a client could write one,
+  // the whole thing is decoration.
+  await assertFails(
+    setDoc(doc(asAngler(), 'users', ANGLER, 'badges', 'first-catch'), {
+      schemaVersion: 1,
+      title: 'First Catch',
+      description: 'Nope',
+      icon: 'fish',
+      awardedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+  );
+  // Not even an admin — awards come from the threshold check, nowhere else.
+  await assertFails(
+    setDoc(doc(asOwner(), 'users', ANGLER, 'badges', 'first-catch'), {
+      schemaVersion: 1,
+      title: 'First Catch',
+      awardedAt: new Date(),
+    }),
+  );
+});
+
+test('badge awards are public — a badge nobody can see is not a badge', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'users', ANGLER, 'badges', 'first-catch'), {
+      schemaVersion: 1,
+      title: 'First Catch',
+      description: 'Posted your first approved catch.',
+      icon: 'fish',
+      awardedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+  await assertSucceeds(getDoc(doc(asOther(), 'users', ANGLER, 'badges', 'first-catch')));
+  await assertFails(getDoc(doc(asGuest(), 'users', ANGLER, 'badges', 'first-catch')));
+});
+
+test('the points ledger is private to its owner and an admin', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'users', ANGLER, 'pointsLedger', 'e1'), {
+      schemaVersion: 1,
+      amount: 10,
+      reason: 'post_approved',
+      sourceId: 'approved1',
+      note: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+
+  await assertSucceeds(getDoc(doc(asAngler(), 'users', ANGLER, 'pointsLedger', 'e1')));
+  await assertSucceeds(getDoc(doc(asOwner(), 'users', ANGLER, 'pointsLedger', 'e1')));
+  // What someone earned and when is nobody else's business — the total on the
+  // public profile is the part meant to be seen.
+  await assertFails(getDoc(doc(asOther(), 'users', ANGLER, 'pointsLedger', 'e1')));
+});
+
+test('nobody can write themselves points, and an admin can only file an adjustment', async () => {
+  const entry = {
+    schemaVersion: 1,
+    amount: 5000,
+    reason: 'post_approved',
+    sourceId: null,
+    note: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  await assertFails(setDoc(doc(asAngler(), 'users', ANGLER, 'pointsLedger', 'fake'), entry));
+  // Even an admin cannot forge an "earned" entry — only a labelled adjustment,
+  // so an intervention stays visible as one.
+  await assertFails(setDoc(doc(asOwner(), 'users', ANGLER, 'pointsLedger', 'fake'), entry));
+  await assertSucceeds(
+    setDoc(doc(asOwner(), 'users', ANGLER, 'pointsLedger', 'adj1'), {
+      ...entry,
+      amount: 50,
+      reason: 'admin_adjustment',
+      note: 'Won the spring raffle',
+    }),
+  );
+});
+
+test('a ledger entry cannot be edited after the fact', async () => {
+  await assertFails(
+    updateDoc(doc(asOwner(), 'users', ANGLER, 'pointsLedger', 'adj1'), { amount: 9999 }),
+  );
+  await assertFails(
+    updateDoc(doc(asAngler(), 'users', ANGLER, 'pointsLedger', 'e1'), { amount: 9999 }),
+  );
+});
+
+test('the points total on a profile is denied to everyone, including its owner', async () => {
+  await assertFails(updateDoc(doc(asAngler(), 'users', ANGLER), { points: 99999 }));
+  // And to an admin: the total is the sum of the ledger, so editing it
+  // directly would make the ledger a lie.
+  await assertFails(updateDoc(doc(asOwner(), 'users', ANGLER), { points: 99999 }));
+});
+
+test('the leaderboard query is allowed', async () => {
+  await assertSucceeds(getDocs(query(
+    collection(asAngler(), 'users'),
+    where('accountStatus', '==', 'active'),
+    orderBy('points', 'desc'),
+    limit(50),
+  )));
+});
+
+test('only an admin can delete a badge definition', async () => {
+  await assertFails(deleteDoc(doc(asAngler(), 'badges', 'first-catch')));
+  await assertSucceeds(deleteDoc(doc(asOwner(), 'badges', 'first-catch')));
+});

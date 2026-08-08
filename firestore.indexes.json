@@ -1,6 +1,36 @@
 {
   "indexes": [
     {
+      "comment": "Angler leaderboard: active accounts, most points first.",
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "accountStatus",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "points",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "comment": "Badge definitions: published, in display order.",
+      "collectionGroup": "badges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "published",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "comment": "Public home feed: approved posts, newest first.",
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
@@ -88,9 +118,18 @@
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "challengeId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "likeCount", "order": "DESCENDING" }
+        {
+          "fieldPath": "challengeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "likeCount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
@@ -98,10 +137,22 @@
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "challengeId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "featured", "order": "DESCENDING" },
-        { "fieldPath": "likeCount", "order": "DESCENDING" }
+        {
+          "fieldPath": "challengeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "featured",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "likeCount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
@@ -109,9 +160,18 @@
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "tournamentId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "likeCount", "order": "DESCENDING" }
+        {
+          "fieldPath": "tournamentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "likeCount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
@@ -119,10 +179,22 @@
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "tournamentId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "featured", "order": "DESCENDING" },
-        { "fieldPath": "likeCount", "order": "DESCENDING" }
+        {
+          "fieldPath": "tournamentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "featured",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "likeCount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
@@ -130,8 +202,14 @@
       "collectionGroup": "challenges",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "published", "order": "ASCENDING" },
-        { "fieldPath": "endsAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "published",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endsAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
@@ -139,8 +217,14 @@
       "collectionGroup": "tournaments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "published", "order": "ASCENDING" },
-        { "fieldPath": "endsAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "published",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endsAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {

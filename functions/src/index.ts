@@ -47,6 +47,7 @@ export const onPostSubmitted = onDocumentCreated('posts/{postId}', async (event)
   // Before the admin check below — a competition entry still counts even if
   // nobody is configured to be notified about it.
   await bumpEntryCounts(post, 1);
+  await awardEntryPoints(post);
 
   const admins = await adminUids();
   if (admins.length === 0) {
@@ -101,15 +102,21 @@ export const onPostReviewed = onDocumentUpdated('posts/{postId}', async (event) 
       data: { postId },
       preference: 'postApproved',
     });
+
+    await awardPoints(after.authorId, 'post_approved', POINT_VALUES.post_approved, postId);
     return;
   }
 
-  // An approved post that was later rejected or taken down: undo the count.
+  // An approved post that was later rejected or taken down: undo the count,
+  // and take the points back with it. Points that survive their reason are
+  // how a leaderboard stops meaning anything.
   if (before.status === 'approved' && after.status !== 'approved') {
     await db()
       .doc(`users/${after.authorId}`)
       .update({ postCount: FieldValue.increment(-1), updatedAt: new Date() })
       .catch((error) => logger.warn('Could not lower postCount', { error }));
+
+    await revokePoints(after.authorId, 'post_approved', postId);
   }
 });
 
@@ -174,6 +181,73 @@ async function bumpEntryCounts(
   );
 }
 
+/**
+ * Points for entering a competition.
+ *
+ * Awarded per competition, not per post: the key is the competition id, so
+ * posting ten catches into one challenge pays the entry bonus once. Turning up
+ * is what's being rewarded, not volume — volume already earns per-post points.
+ */
+async function awardEntryPoints(post: FirebaseFirestore.DocumentData): Promise<void> {
+  if (!post.authorId) return;
+
+  for (const id of [post.challengeId, post.tournamentId]) {
+    if (typeof id === 'string' && id.length > 0) {
+      await awardPoints(
+        post.authorId,
+        'competition_entered',
+        POINT_VALUES.competition_entered,
+        id,
+      );
+    }
+  }
+}
+
+/**
+ * A winner was declared: pay out, and take it back if the pick changes.
+ *
+ * Watching for the change rather than trusting the client is the point —
+ * `winnerUid` is admin-only in the rules, and this is what turns that decision
+ * into points nobody could have awarded themselves.
+ *
+ * Registered once per collection rather than as a `{root}/{id}` wildcard: that
+ * pattern matches every top-level document in the database, so it would wake
+ * on every post, user, and message write to discover it had nothing to do.
+ */
+function winnerTrigger(root: 'challenges' | 'tournaments') {
+  const kind = root === 'challenges' ? 'challenge' : 'tournament';
+
+  return onDocumentUpdated(`${root}/{competitionId}`, async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after || before.winnerUid === after.winnerUid) return;
+
+    const { competitionId } = event.params;
+
+    if (before.winnerUid) {
+      await revokePoints(before.winnerUid, 'competition_won', competitionId);
+    }
+    if (after.winnerUid) {
+      await awardPoints(
+        after.winnerUid,
+        'competition_won',
+        POINT_VALUES.competition_won,
+        competitionId,
+      );
+      await notifyUser(after.winnerUid, {
+        type: 'badge_earned',
+        title: 'You won!',
+        body: `Coop picked your catch to win “${after.title ?? 'the challenge'}”.`,
+        href: `/compete/${competitionId}?kind=${kind}`,
+        data: { competitionId, kind },
+      });
+    }
+  });
+}
+
+export const onChallengeWinnerSet = winnerTrigger('challenges');
+export const onTournamentWinnerSet = winnerTrigger('tournaments');
+
 // ---------------------------------------------------------------------------
 // Likes and comments
 // ---------------------------------------------------------------------------
@@ -202,16 +276,27 @@ export const onLikeCreated = onDocumentCreated(
       data: { postId },
       preference: 'postLiked',
     });
+
+    // Keyed on the liker, so unliking and re-liking can't farm points.
+    await awardPoints(authorId, 'like_received', POINT_VALUES.like_received, `${postId}_${likerId}`);
   },
 );
 
 export const onLikeDeleted = onDocumentDeleted(
   'posts/{postId}/likes/{likerId}',
   async (event) => {
+    const { postId, likerId } = event.params;
+
     await db()
-      .doc(`posts/${event.params.postId}`)
+      .doc(`posts/${postId}`)
       .update({ likeCount: FieldValue.increment(-1) })
       .catch(() => undefined);
+
+    const post = await db().doc(`posts/${postId}`).get();
+    const authorId = post.get('authorId') as string | undefined;
+    if (authorId) {
+      await revokePoints(authorId, 'like_received', `${postId}_${likerId}`);
+    }
   },
 );
 
@@ -301,6 +386,177 @@ export const onFollowDeleted = onDocumentDeleted('follows/{edgeId}', async (even
 });
 
 // ---------------------------------------------------------------------------
+// Points and badges
+// ---------------------------------------------------------------------------
+
+/**
+ * What each action is worth.
+ *
+ * Mirrored in `src/lib/db/rewards.ts` so the app can explain the scoring. This
+ * copy is the one that pays out; a unit test asserts the two agree.
+ */
+const POINT_VALUES = {
+  post_approved: 10,
+  like_received: 1,
+  review_written: 5,
+  competition_entered: 5,
+  competition_won: 100,
+} as const;
+
+type PointsReason = keyof typeof POINT_VALUES | 'admin_adjustment';
+
+/**
+ * Award (or claw back) points.
+ *
+ * Two writes in a transaction: a ledger entry, and the running total on the
+ * profile. The ledger is what makes a total explainable — "where did my 240
+ * points come from" has an answer, and a bad rule can be reversed with a
+ * negative entry rather than by editing a number nobody can check.
+ *
+ * `sourceId` doubles as an idempotency key. Firestore triggers are
+ * at-least-once, so without it a retried delivery would pay out twice; the
+ * deterministic document id makes a repeat a no-op instead.
+ */
+async function awardPoints(
+  uid: string,
+  reason: PointsReason,
+  amount: number,
+  sourceId: string | null,
+): Promise<void> {
+  if (!uid || amount === 0) return;
+
+  // `${reason}_${sourceId}` rather than a random id: the same source paying
+  // out twice is the failure mode this prevents.
+  const entryId = sourceId ? `${reason}__${sourceId}` : null;
+  const ledger = db().collection(`users/${uid}/pointsLedger`);
+  const entryRef = entryId ? ledger.doc(entryId) : ledger.doc();
+
+  await db()
+    .runTransaction(async (tx) => {
+      const existing = await tx.get(entryRef);
+      if (existing.exists) return;
+
+      tx.set(entryRef, {
+        schemaVersion: 1,
+        amount,
+        reason,
+        sourceId,
+        note: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      tx.update(db().doc(`users/${uid}`), {
+        points: FieldValue.increment(amount),
+        updatedAt: new Date(),
+      });
+    })
+    .catch((error) => logger.warn('Could not award points', { error, uid, reason }));
+}
+
+/**
+ * Reverse an award, by source. Used when the thing that earned it goes away —
+ * a post that gets taken down shouldn't leave its points behind.
+ */
+async function revokePoints(
+  uid: string,
+  reason: PointsReason,
+  sourceId: string,
+): Promise<void> {
+  if (!uid || !sourceId) return;
+  const entryRef = db().doc(`users/${uid}/pointsLedger/${reason}__${sourceId}`);
+
+  await db()
+    .runTransaction(async (tx) => {
+      const entry = await tx.get(entryRef);
+      if (!entry.exists) return;
+
+      const amount = (entry.get('amount') as number | undefined) ?? 0;
+      tx.delete(entryRef);
+      tx.update(db().doc(`users/${uid}`), {
+        points: FieldValue.increment(-amount),
+        updatedAt: new Date(),
+      });
+    })
+    .catch((error) => logger.warn('Could not revoke points', { error, uid, reason }));
+}
+
+/**
+ * An admin filed a manual adjustment: fold it into the running total.
+ *
+ * The rules let an admin write a ledger entry but deny everyone the `points`
+ * field, so this is what makes a hand adjustment actually land — and it goes
+ * through the same ledger as everything else.
+ */
+export const onPointsEntryCreated = onDocumentCreated(
+  'users/{uid}/pointsLedger/{entryId}',
+  async (event) => {
+    const entry = event.data?.data();
+    // Everything except an admin adjustment was written by `awardPoints`,
+    // which already moved the total inside its transaction.
+    if (!entry || entry.reason !== 'admin_adjustment') return;
+
+    const amount = typeof entry.amount === 'number' ? entry.amount : 0;
+    if (amount === 0) return;
+
+    await db()
+      .doc(`users/${event.params.uid}`)
+      .update({ points: FieldValue.increment(amount), updatedAt: new Date() })
+      .catch((error) => logger.warn('Could not apply adjustment', { error }));
+  },
+);
+
+/**
+ * Award any badge whose threshold this profile has just crossed.
+ *
+ * Runs on every profile update, which is also every time a counter moves — so
+ * badges land without a scheduled job. The award document id is the badge id,
+ * so awarding twice is a no-op rather than a duplicate.
+ */
+async function checkBadges(
+  uid: string,
+  profile: FirebaseFirestore.DocumentData,
+): Promise<void> {
+  const badges = await db()
+    .collection('badges')
+    .where('published', '==', true)
+    .get()
+    .catch(() => null);
+  if (!badges || badges.empty) return;
+
+  const earned = badges.docs.filter((badge) => {
+    const metric = badge.get('metric') as string | undefined;
+    const threshold = badge.get('threshold') as number | undefined;
+    if (!metric || typeof threshold !== 'number') return false;
+    const value = profile[metric];
+    return typeof value === 'number' && value >= threshold;
+  });
+
+  for (const badge of earned) {
+    const awardRef = db().doc(`users/${uid}/badges/${badge.id}`);
+    const existing = await awardRef.get();
+    if (existing.exists) continue;
+
+    await awardRef.set({
+      schemaVersion: 1,
+      title: badge.get('title') ?? badge.id,
+      description: badge.get('description') ?? '',
+      icon: badge.get('icon') ?? 'ribbon',
+      awardedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await notifyUser(uid, {
+      type: 'badge_earned',
+      title: 'Badge earned',
+      body: `You earned “${badge.get('title') ?? badge.id}”.`,
+      href: '/(tabs)/profile',
+      data: { badgeId: badge.id },
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Reviews
 // ---------------------------------------------------------------------------
 
@@ -369,6 +625,15 @@ function reviewTrigger(root: string) {
       const { subjectId, authorUid } = event.params;
       await applyReviewDelta(root, subjectId, 1, review.rating ?? 0);
 
+      // Keyed on the subject, so deleting and rewriting a review of the same
+      // thing doesn't pay out again.
+      await awardPoints(
+        authorUid,
+        'review_written',
+        POINT_VALUES.review_written,
+        `${root}_${subjectId}`,
+      );
+
       // Only shop products can be verified — a community bait review has no
       // order to match against.
       if (root === 'productReviews' && (await hasPurchased(authorUid, subjectId))) {
@@ -390,6 +655,11 @@ function reviewTrigger(root: string) {
       const review = event.data?.data();
       if (!review) return;
       await applyReviewDelta(root, event.params.subjectId, -1, -(review.rating ?? 0));
+      await revokePoints(
+        event.params.authorUid,
+        'review_written',
+        `${root}_${event.params.subjectId}`,
+      );
     }),
   };
 }
@@ -588,6 +858,10 @@ export const onProfileUpdated = onDocumentUpdated('users/{uid}', async (event) =
   const before = event.data?.before.data();
   const after = event.data?.after.data();
   if (!before || !after) return;
+
+  // Every counter move lands here, so badges are checked without a scheduled
+  // job. Before the early return below, which is only about name changes.
+  await checkBadges(event.params.uid, after);
 
   if (before.username === after.username && before.photoURL === after.photoURL) return;
 

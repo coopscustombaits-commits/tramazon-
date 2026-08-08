@@ -44,6 +44,7 @@ src/
     baits/                community bait reviews
     learn/                tips and YouTube videos
     compete/              challenges, tournaments, leaderboards
+    leaderboard.tsx       all-time angler ranking
     search.tsx            search anglers and catches
     species/              per-species hubs
     notifications.tsx     in-app activity history
@@ -88,7 +89,7 @@ restructuring. That is not the same as being built.
 | --- | --- |
 | **1 — Core app** | Everything |
 | **2 — Community** | Everything |
-| **3 — Engagement** | 5 of 9 items |
+| **3 — Engagement** | 7 of 9 items |
 | **4 — Admin dashboard & moderation** | Enforcement only, no dashboard |
 
 ---
@@ -119,7 +120,7 @@ restructuring. That is not the same as being built.
 | Dark mode toggle | Done |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done, covers all four phases |
-| Tests | 64 unit + 88 security rules, all in CI |
+| Tests | 70 unit + 99 security rules, all in CI |
 
 ### Phase 2 — Community · complete
 
@@ -135,7 +136,7 @@ restructuring. That is not the same as being built.
 | Bait reviews | **Done** — community reviews of any bait |
 | YouTube integration | **Done** — inline player, id stored not a URL |
 
-### Phase 3 — Engagement · 5 of 9
+### Phase 3 — Engagement · 7 of 9
 
 | Feature | State |
 | --- | --- |
@@ -143,8 +144,8 @@ restructuring. That is not the same as being built.
 | Fishing challenges | **Done** — entered by posting a catch |
 | Online tournaments | **Done** — same mechanism, dated |
 | Leaderboards | **Done** — a query over posts, not a stored ranking |
-| Badges and achievements | Not built |
-| Points / rewards | Not built — `users.points` is ready |
+| Badges and achievements | **Done** — data-driven, awarded automatically |
+| Points / rewards | **Done** — with an auditable ledger |
 | Event calendar | Not built |
 | Fishing tips and articles | **Done** — shares the articles collection |
 | Featured products on home | Not built |
@@ -165,7 +166,7 @@ sit on top of, which is the part that has to be right first.
 | Manage users (edit, delete) | Not built |
 | Segmented push | Not built |
 | Manage tournaments and challenges | **Done** — admin editor |
-| Manage badges | Not built |
+| Manage badges | **Done** — admin editor, no deploy needed |
 | Add / edit articles | **Done** — admin editor with drafts |
 | Remote config | Not built |
 | **User reporting** | **Done** — report posts, comments, and anglers |

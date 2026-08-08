@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BadgeShelf } from '@/components/badge-shelf';
 import { PostCard } from '@/components/post-card';
 import { ReportSheet } from '@/components/report-sheet';
 import { Button } from '@/components/ui/button';
@@ -213,7 +214,7 @@ export default function UserProfileScreen() {
 
           <View style={styles.stats}>
             <Stat label="Posts" value={profile.postCount} />
-            <Stat label="Fish logged" value={profile.fishLoggedCount ?? 0} />
+            <Stat label="Points" value={profile.points ?? 0} />
             <Stat label="Followers" value={profile.followerCount} />
           </View>
 
@@ -236,6 +237,8 @@ export default function UserProfileScreen() {
             />
           </View>
         </Card>
+
+        <BadgeShelf uid={profile.uid} />
 
         {isBlocked(profile.uid) ? (
           <Card>

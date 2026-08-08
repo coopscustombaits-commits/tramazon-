@@ -113,6 +113,13 @@ export default function SettingsScreen() {
           />
           <Divider />
           <ListRow
+            label="Leaderboard"
+            description="Top anglers, and how points work"
+            icon="podium-outline"
+            onPress={() => router.push('/leaderboard')}
+          />
+          <Divider />
+          <ListRow
             label="Challenges & tournaments"
             description="What's running, and the leaderboards"
             icon="trophy-outline"
@@ -160,6 +167,13 @@ export default function SettingsScreen() {
                 description="Content flagged by anglers"
                 icon="flag-outline"
                 onPress={() => router.push('/admin/reports')}
+              />
+              <Divider />
+              <ListRow
+                label="Badges"
+                description="What anglers can earn, and the thresholds"
+                icon="ribbon-outline"
+                onPress={() => router.push('/admin/badges')}
               />
               <Divider />
               <ListRow

@@ -174,8 +174,8 @@ above things written since.
 | Challenges | `challenges` collection + `posts.challengeId` ★ | **Built** |
 | Tournaments | `tournaments` collection + `posts.tournamentId` | **Built** |
 | Leaderboards | A query over `posts` — no aggregates needed | **Built** |
-| Badges | New `badges` collection + `users/{uid}/badges` | Ready |
-| Points / rewards | `users.points` ★ | Ready |
+| Badges | `badges` collection + `users/{uid}/badges` | **Built** |
+| Points / rewards | `users.points` ★ + a ledger | **Built** |
 | Event calendar | New `events` collection | Ready |
 | Tips and articles | `articles` collection | **Built** |
 | Featured products | A Shopify collection named "Featured" | Ready, no schema |
@@ -219,8 +219,36 @@ doesn't stall behind Coop's review queue.
 An all-time angler leaderboard is still to come, and ranks on totals that
 already exist: `postCount`, `fishLoggedCount`, and ★`points`.
 
+**Points.** `users.points` is the running total, and
+`users/{uid}/pointsLedger/{id}` is where it comes from. Keeping the ledger
+rather than only the total is what makes the number auditable — "where did my
+240 points come from" has an answer — and it means a bad awarding rule can be
+reversed with a negative entry instead of by editing a figure nobody can check.
+
+Each entry's `sourceId` doubles as an idempotency key, and the document id is
+`reason__sourceId`. Firestore triggers are at-least-once, so without that a
+retried delivery pays out twice; with it, a repeat is a no-op. It also closes
+the obvious farm: the like award keys on `postId_likerId`, so unliking and
+re-liking the same catch earns nothing the second time.
+
+Points are taken back when their reason goes away — a catch that gets taken
+down takes its ten points with it. Points that outlive their reason are how a
+leaderboard stops meaning anything.
+
+Even an admin cannot edit a total: the rules deny `points` to every client, and
+a hand adjustment is filed as a labelled ledger entry that a function folds in.
+An intervention stays visible as one.
+
 **Badges.** `badges/{badgeId}` for definitions, `users/{uid}/badges/{badgeId}`
-for awards. Awarding hangs off the Cloud Functions that already maintain the
+for awards. Definitions are **data, not code** — each names a metric
+(`postCount`, `points`, `followerCount`, `fishLoggedCount`) and a threshold,
+and the awarding function awards anything a profile has crossed. Adding "100
+catches" is a document, not a deploy. Awards are written only by that function;
+the rules refuse them to everyone, admins included, because a badge you can
+grant yourself is decoration.
+
+The check runs on profile update, which is also every time a counter moves, so
+badges land without a scheduled job. Awarding hangs off the Cloud Functions that already maintain the
 counters — "first post" and "10 catches logged" are conditions on numbers those
 functions already write. `NotificationType` already includes `badge_earned`.
 

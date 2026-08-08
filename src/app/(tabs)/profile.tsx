@@ -5,6 +5,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
 import { PostCard } from '@/components/post-card';
+import { BadgeShelf } from '@/components/badge-shelf';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge, Card } from '@/components/ui/card';
@@ -81,7 +82,7 @@ export default function ProfileScreen() {
 
           <View style={styles.stats}>
             <Stat label="Posts" value={profile.postCount} />
-            <Stat label="Fish logged" value={profile.fishLoggedCount ?? 0} />
+            <Stat label="Points" value={profile.points ?? 0} />
             <Stat label="Followers" value={profile.followerCount} />
           </View>
 
@@ -91,6 +92,15 @@ export default function ProfileScreen() {
             onPress={() => router.push('/settings/edit-profile')}
           />
         </Card>
+
+        <BadgeShelf uid={profile.uid} />
+
+        <Button
+          label="Leaderboard"
+          icon="podium-outline"
+          variant="outline"
+          onPress={() => router.push('/leaderboard')}
+        />
 
         {isAdmin ? (
           <Button

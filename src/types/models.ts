@@ -1,5 +1,9 @@
 import type { Timestamp } from 'firebase/firestore';
 
+// Relative, with the extension, rather than the `@/` alias: the unit tests run
+// these modules directly in Node, which doesn't resolve the alias.
+import type { BadgeMetric, PointsReason } from '../lib/rewards.ts';
+
 /**
  * Firestore document shapes.
  *
@@ -366,6 +370,70 @@ export type Follow = {
   followerId: string;
   followingId: string;
   createdAt: Timestamp | null;
+};
+
+// ---------------------------------------------------------------------------
+// Points and badges
+// ---------------------------------------------------------------------------
+
+/**
+ * Why points were awarded. Stored on the ledger entry so a total can always be
+ * explained — "where did my 240 points come from" has an answer, and a bug in
+ * an awarding rule can be found and reversed instead of guessed at.
+ */
+export type { BadgeMetric, PointsReason } from '../lib/rewards.ts';
+
+/**
+ * `users/{uid}/pointsLedger/{id}` — one entry per award.
+ *
+ * The running total on the profile is the sum of these. Keeping the ledger
+ * rather than only the total is what makes the number auditable; it also means
+ * an award can be reversed by writing a negative entry instead of editing a
+ * total nobody can check.
+ *
+ * `sourceId` is the thing that earned it (a post id, a review's subject) and
+ * doubles as an idempotency key: the same source can't pay out twice.
+ */
+export type PointsEntry = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  amount: number;
+  reason: PointsReason;
+  sourceId: string | null;
+  note: string | null;
+};
+
+/**
+ * `badges/{badgeId}` — a badge definition, editable by an admin.
+ *
+ * Deliberately data-driven rather than hard-coded: the awarding function reads
+ * these and awards any whose threshold a profile has crossed, so Coop can add
+ * "100 catches" from the admin screen without a code deploy.
+ */
+export type Badge = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  title: string;
+  description: string;
+  /** An Ionicons name. Validated against the set the app can render. */
+  icon: string;
+  metric: BadgeMetric;
+  /** Awarded once the metric reaches this. */
+  threshold: number;
+  /** Sort order on the profile. Lower first. */
+  order: number;
+  published: boolean;
+};
+
+/** `users/{uid}/badges/{badgeId}` — an award. Server-written. */
+export type BadgeAward = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  /** Copied from the definition so a profile renders in one read. */
+  title: string;
+  description: string;
+  icon: string;
+  awardedAt: Timestamp | null;
 };
 
 // ---------------------------------------------------------------------------

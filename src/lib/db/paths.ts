@@ -18,6 +18,13 @@ export const paths = {
   userOrders: (uid: string) => `users/${uid}/orders`,
   userOrder: (uid: string, orderId: string) => `users/${uid}/orders/${orderId}`,
 
+  userPointsLedger: (uid: string) => `users/${uid}/pointsLedger`,
+  userBadges: (uid: string) => `users/${uid}/badges`,
+  userBadge: (uid: string, badgeId: string) => `users/${uid}/badges/${badgeId}`,
+
+  badges: 'badges',
+  badge: (id: string) => `badges/${id}`,
+
   usernames: 'usernames',
   username: (usernameLower: string) => `usernames/${usernameLower}`,
 

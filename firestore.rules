@@ -175,6 +175,30 @@ service cloud.firestore {
         allow create, delete: if false;
       }
 
+      // users/{uid}/pointsLedger/{entryId} — why the points total is what it
+      // is. Private: what somebody earned and when is nobody else's business,
+      // and the total on the public profile is the part meant to be seen.
+      //
+      // Written by Cloud Functions, except that an admin may file a manual
+      // adjustment. Even Coop cannot edit the running total directly — the
+      // function sums the ledger, so an intervention stays explainable.
+      match /pointsLedger/{entryId} {
+        allow read: if isSelf(uid) || isAdmin();
+        allow create: if isAdmin()
+          && request.resource.data.reason == 'admin_adjustment'
+          && request.resource.data.amount is int;
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+
+      // users/{uid}/badges/{badgeId} — awards. Public, because a badge you
+      // can't show anyone isn't a badge. Written only by the Cloud Function
+      // that checks thresholds; an award you can grant yourself is worthless.
+      match /badges/{badgeId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
+
       // users/{uid}/blocked/{blockedUid} — private to the owner.
       //
       // Deliberately not readable by the person who was blocked: they are
@@ -256,6 +280,26 @@ service cloud.firestore {
 
       // Counters are derived from these edges; editing one would desync them.
       allow update: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // badges/{badgeId} — definitions, not awards.
+    //
+    // Data-driven on purpose: the awarding function reads these and awards any
+    // whose threshold a profile has crossed, so a new badge is a document
+    // rather than a deploy. Awards live under each user and are server-only.
+    // ---------------------------------------------------------------------
+    match /badges/{badgeId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin()
+        && isValidString(request.resource.data.title, 60)
+        && request.resource.data.title.size() > 0
+        && isValidString(request.resource.data.description, 200)
+        && request.resource.data.metric in
+             ['postCount', 'points', 'followerCount', 'fishLoggedCount']
+        && request.resource.data.threshold is int
+        && request.resource.data.threshold >= 1;
+      allow delete: if isAdmin();
     }
 
     // ---------------------------------------------------------------------
