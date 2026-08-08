@@ -1768,3 +1768,119 @@ test('only an admin can edit or delete an event', async () => {
   await assertFails(deleteDoc(doc(asAngler(), 'events', 'weigh-in')));
   await assertSucceeds(deleteDoc(doc(asOwner(), 'events', 'tentative')));
 });
+
+// ---------------------------------------------------------------------------
+// Admin: stats, remote config, and managing accounts
+// ---------------------------------------------------------------------------
+
+test('dashboard stats are admin-only and never client-written', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'stats', 'global'), {
+      schemaVersion: 1,
+      userCount: 42,
+      postCount: 100,
+      approvedPostCount: 80,
+      pendingPostCount: 3,
+      openReportCount: 1,
+      updatedAt: new Date(),
+    });
+  });
+
+  await assertSucceeds(getDoc(doc(asOwner(), 'stats', 'global')));
+  // A user count is the kind of thing a competitor screenshots.
+  await assertFails(getDoc(doc(asAngler(), 'stats', 'global')));
+  await assertFails(getDoc(doc(asGuest(), 'stats', 'global')));
+  // Not even an admin writes these — the Cloud Functions do.
+  await assertFails(updateDoc(doc(asOwner(), 'stats', 'global'), { userCount: 99999 }));
+});
+
+test('remote config is readable by anglers and writable only by an admin', async () => {
+  const config = {
+    schemaVersion: 1,
+    maintenanceMode: false,
+    maintenanceMessage: '',
+    announcementBanner: 'Restock Friday',
+    postingEnabled: true,
+    messagingEnabled: true,
+    updatedBy: OWNER,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  await assertFails(setDoc(doc(asAngler(), 'config', 'app'), config));
+  await assertSucceeds(setDoc(doc(asOwner(), 'config', 'app'), config));
+
+  // The app acts on it, so every signed-in user has to be able to read it.
+  await assertSucceeds(getDoc(doc(asAngler(), 'config', 'app')));
+  await assertFails(getDoc(doc(asGuest(), 'config', 'app')));
+
+  // An angler cannot turn maintenance mode off — or on.
+  await assertFails(updateDoc(doc(asAngler(), 'config', 'app'), { maintenanceMode: true }));
+});
+
+test('an admin can suspend and reinstate an account', async () => {
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'users', ANGLER), {
+      accountStatus: 'suspended',
+      suspendedUntil: new Date(Date.now() + 7 * 24 * HOUR),
+      updatedAt: new Date(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'users', ANGLER), {
+      accountStatus: 'active',
+      suspendedUntil: null,
+      updatedAt: new Date(),
+    }),
+  );
+});
+
+test('nobody can lift their own suspension, and an angler cannot suspend anyone', async () => {
+  await assertFails(
+    updateDoc(doc(asAngler(), 'users', ANGLER), { accountStatus: 'suspended' }),
+  );
+  await assertFails(
+    updateDoc(doc(asAngler(), 'users', OTHER), {
+      accountStatus: 'banned',
+      suspendedUntil: null,
+      updatedAt: new Date(),
+    }),
+  );
+});
+
+test('the moderation rule cannot be used to rewrite the rest of a profile', async () => {
+  // `hasOnly` is what limits the blast radius: a moderation tool that can also
+  // change somebody's bio, username, or points is bigger than the job needs.
+  await assertFails(
+    updateDoc(doc(asOwner(), 'users', ANGLER), {
+      accountStatus: 'suspended',
+      bio: 'Moderated by Coop',
+      updatedAt: new Date(),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(asOwner(), 'users', ANGLER), {
+      accountStatus: 'active',
+      points: 99999,
+      updatedAt: new Date(),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(asOwner(), 'users', ANGLER), {
+      accountStatus: 'active',
+      username: 'Renamed',
+      usernameLower: 'renamed',
+      updatedAt: new Date(),
+    }),
+  );
+});
+
+test('an account cannot be moved into a status that does not exist', async () => {
+  await assertFails(
+    updateDoc(doc(asOwner(), 'users', ANGLER), {
+      accountStatus: 'shadowbanned',
+      suspendedUntil: null,
+      updatedAt: new Date(),
+    }),
+  );
+});

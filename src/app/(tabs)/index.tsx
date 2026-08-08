@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, View } from 'react-native';
+import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 
 import { AppHeader } from '@/components/app-header';
@@ -8,12 +8,13 @@ import { FeaturedRail } from '@/components/featured-rail';
 import { PostCard } from '@/components/post-card';
 import { Button } from '@/components/ui/button';
 import { EmptyState, Screen, ScreenLoader } from '@/components/ui/screen';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing, Typography } from '@/constants/theme';
 import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useUnreadMessages } from '@/hooks/use-unread-messages';
 import { useUnreadNotifications } from '@/hooks/use-unread-notifications';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useBlocked } from '@/lib/db/blocked-context';
+import { useRemoteConfig } from '@/lib/db/config-context';
 import { fetchFeedPage, type PostPage } from '@/lib/db/posts';
 import type { Post } from '@/types/models';
 
@@ -26,6 +27,7 @@ export default function FeedScreen() {
   const unread = useUnreadNotifications(user?.uid ?? null);
   const unreadMessages = useUnreadMessages(user?.uid ?? null);
   const { filterBlocked } = useBlocked();
+  const config = useRemoteConfig();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [cursor, setCursor] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
@@ -145,7 +147,16 @@ export default function FeedScreen() {
         // The rail lives in the list header rather than above the FlatList so
         // it scrolls away with the feed instead of pinning a shop shelf to the
         // top of the screen.
-        ListHeaderComponent={<FeaturedRail />}
+        ListHeaderComponent={
+          <>
+            {config.announcementBanner ? (
+              <View style={styles.banner}>
+                <Text style={styles.bannerText}>{config.announcementBanner}</Text>
+              </View>
+            ) : null}
+            <FeaturedRail />
+          </>
+        }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshing={refreshing}
         onRefresh={() => void refresh()}
@@ -192,4 +203,13 @@ const useStyles = makeStyles((Colors) => ({
   footer: {
     paddingVertical: Spacing.xl,
   },
+  banner: {
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.primaryTint,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+  },
+  bannerText: { ...Typography.caption, color: Colors.primary, fontWeight: '600' },
 }));

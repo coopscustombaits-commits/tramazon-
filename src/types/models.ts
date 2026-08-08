@@ -373,6 +373,50 @@ export type Follow = {
 };
 
 // ---------------------------------------------------------------------------
+// Admin: stats and remote config
+// ---------------------------------------------------------------------------
+
+/**
+ * `stats/global` — running totals for the dashboard.
+ *
+ * Maintained by Cloud Functions as things are created and deleted, rather than
+ * counted on demand. Counting users or posts with a query costs a read per
+ * document every time the dashboard opens; an incremented total costs one.
+ *
+ * Admin-readable only. These are business numbers, not something anglers need.
+ */
+export type GlobalStats = Timestamps & {
+  schemaVersion: number;
+  userCount: number;
+  postCount: number;
+  approvedPostCount: number;
+  pendingPostCount: number;
+  openReportCount: number;
+};
+
+/**
+ * `config/app` — settings Coop can change without shipping an update.
+ *
+ * The point of this existing at all: an app store review takes days, so
+ * anything that might need turning off in a hurry has to be a document rather
+ * than a constant. Nothing here grants permission — the security rules do
+ * that. These are switches for behaviour, not for access.
+ */
+export type RemoteConfig = Timestamps & {
+  schemaVersion: number;
+  /** Turns the app read-only and shows `maintenanceMessage`. */
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  /** Shown as a dismissible banner on the feed. Empty for none. */
+  announcementBanner: string;
+  /** Lets Coop pause posting without banning anyone. */
+  postingEnabled: boolean;
+  /** Lets Coop pause DMs if they become a problem faster than he can moderate. */
+  messagingEnabled: boolean;
+  updatedBy: string | null;
+};
+
+// ---------------------------------------------------------------------------
 // Events — the calendar
 // ---------------------------------------------------------------------------
 

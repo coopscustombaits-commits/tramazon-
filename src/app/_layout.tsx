@@ -6,12 +6,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ErrorBoundary } from '@/components/error-boundary';
-import { ScreenLoader } from '@/components/ui/screen';
+import { EmptyState, ScreenLoader } from '@/components/ui/screen';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { navigationHeader } from '@/constants/theme';
 import { ThemeProvider, useTheme, useThemeColors } from '@/constants/theme-context';
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context';
 import { BlockedProvider } from '@/lib/db/blocked-context';
+import { ConfigProvider, useRemoteConfig } from '@/lib/db/config-context';
 import { CartProvider } from '@/lib/shopify/cart-context';
 
 void SplashScreen.preventAutoHideAsync();
@@ -24,12 +25,14 @@ export default function RootLayout() {
         <ThemeProvider>
           <ErrorBoundary>
             <AuthProvider>
-              <BlockedProvider>
-                <CartProvider>
-                  <ThemedStatusBar />
-                  <RootNavigator />
-                </CartProvider>
-              </BlockedProvider>
+              <ConfigProvider>
+                <BlockedProvider>
+                  <CartProvider>
+                    <ThemedStatusBar />
+                    <RootNavigator />
+                  </CartProvider>
+                </BlockedProvider>
+              </ConfigProvider>
             </AuthProvider>
           </ErrorBoundary>
         </ThemeProvider>
@@ -54,7 +57,8 @@ function ThemedStatusBar() {
  */
 function RootNavigator() {
   const colors = useThemeColors();
-  const { status, user } = useAuth();
+  const { status, user, isAdmin } = useAuth();
+  const config = useRemoteConfig();
 
   // Register for push and handle notification taps once signed in.
   usePushNotifications(status === 'signed-in' ? (user?.uid ?? null) : null);
@@ -67,6 +71,17 @@ function RootNavigator() {
 
   if (status === 'loading') {
     return <ScreenLoader />;
+  }
+
+  // Maintenance mode stops the app for everyone but an admin — Coop has to be
+  // able to get in and turn it back off, or the switch is a trap.
+  if (config.maintenanceMode && status === 'signed-in' && !isAdmin) {
+    return (
+      <EmptyState
+        title="Back shortly"
+        message={config.maintenanceMessage || 'Coop is fixing something. Try again soon.'}
+      />
+    );
   }
 
   return (
@@ -91,6 +106,9 @@ function RootNavigator() {
         <Stack.Screen name="settings/notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="settings/privacy" options={{ title: 'Privacy & Data' }} />
         <Stack.Screen name="settings/blocked" options={{ title: 'Blocked Anglers' }} />
+        <Stack.Screen name="admin/index" options={{ title: 'Dashboard' }} />
+        <Stack.Screen name="admin/users" options={{ title: 'Anglers' }} />
+        <Stack.Screen name="admin/config" options={{ title: 'App Controls' }} />
         <Stack.Screen name="admin/review" options={{ title: 'Review Queue' }} />
         <Stack.Screen name="admin/announce" options={{ title: 'Announcement' }} />
         <Stack.Screen name="admin/reports" options={{ title: 'Reports' }} />

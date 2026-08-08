@@ -16,6 +16,7 @@ import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
 import { isOpen } from '@/lib/competitions';
+import { useRemoteConfig } from '@/lib/db/config-context';
 import { fetchCompetitions } from '@/lib/db/competitions';
 import { CAPTION_MAX, createPost } from '@/lib/db/posts';
 import type { Competition, MediaKind } from '@/types/models';
@@ -48,6 +49,7 @@ export default function CreatePostScreen() {
   const [caption, setCaption] = useState('');
   const [species, setSpecies] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const config = useRemoteConfig();
   const [openCompetitions, setOpenCompetitions] = useState<Competition[]>([]);
   const [entering, setEntering] = useState<Competition | null>(null);
 
@@ -279,11 +281,21 @@ export default function CreatePostScreen() {
           </Text>
         </View>
 
+        {config.postingEnabled ? null : (
+          <View style={styles.notice}>
+            <Ionicons name="pause-circle-outline" size={18} color={Colors.textMuted} />
+            <Text style={styles.noticeText}>
+              Posting is paused right now. Nothing to do with your account — Coop turned
+              it off for everyone. Try again later.
+            </Text>
+          </View>
+        )}
+
         <Button
-          label="Send for review"
+          label={config.postingEnabled ? 'Send for review' : 'Posting paused'}
           onPress={handleSubmit}
           loading={submitting}
-          disabled={!media || !profile}
+          disabled={!media || !profile || !config.postingEnabled}
         />
       </View>
     </Screen>

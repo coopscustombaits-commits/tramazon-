@@ -162,53 +162,14 @@ export default function SettingsScreen() {
           <>
             <SectionHeader title="Admin" />
             <Card style={styles.card}>
+              {/* Everything admin lives behind one door now — the dashboard —
+                  rather than as eight rows in a settings list an angler would
+                  never see anyway. */}
               <ListRow
-                label="Review queue"
-                description="Approve or reject pending posts"
-                icon="shield-checkmark-outline"
-                onPress={() => router.push('/admin/review')}
-              />
-              <Divider />
-              <ListRow
-                label="Reports"
-                description="Content flagged by anglers"
-                icon="flag-outline"
-                onPress={() => router.push('/admin/reports')}
-              />
-              <Divider />
-              <ListRow
-                label="Calendar"
-                description="Add dates anglers should know about"
-                icon="calendar-outline"
-                onPress={() => router.push('/admin/events')}
-              />
-              <Divider />
-              <ListRow
-                label="Badges"
-                description="What anglers can earn, and the thresholds"
-                icon="ribbon-outline"
-                onPress={() => router.push('/admin/badges')}
-              />
-              <Divider />
-              <ListRow
-                label="Challenges & tournaments"
-                description="Start one, or declare a winner"
-                icon="trophy-outline"
-                onPress={() => router.push('/admin/competitions')}
-              />
-              <Divider />
-              <ListRow
-                label="Tips & videos"
-                description="Write a tip or add a YouTube video"
-                icon="book-outline"
-                onPress={() => router.push('/admin/articles')}
-              />
-              <Divider />
-              <ListRow
-                label="Send an announcement"
-                description="Push a message to everyone"
-                icon="megaphone-outline"
-                onPress={() => router.push('/admin/announce')}
+                label="Dashboard"
+                description="Queues, anglers, publishing, app controls"
+                icon="speedometer-outline"
+                onPress={() => router.push('/admin')}
               />
             </Card>
           </>

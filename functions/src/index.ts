@@ -48,6 +48,7 @@ export const onPostSubmitted = onDocumentCreated('posts/{postId}', async (event)
   // nobody is configured to be notified about it.
   await bumpEntryCounts(post, 1);
   await awardEntryPoints(post);
+  await bumpStats({ postCount: 1, pendingPostCount: 1 });
 
   const admins = await adminUids();
   if (admins.length === 0) {
@@ -104,6 +105,11 @@ export const onPostReviewed = onDocumentUpdated('posts/{postId}', async (event) 
     });
 
     await awardPoints(after.authorId, 'post_approved', POINT_VALUES.post_approved, postId);
+    await bumpStats({
+      approvedPostCount: 1,
+      // Whatever it was before, it has left the queue now.
+      pendingPostCount: before.status === 'pending' ? -1 : 0,
+    });
     return;
   }
 
@@ -117,6 +123,10 @@ export const onPostReviewed = onDocumentUpdated('posts/{postId}', async (event) 
       .catch((error) => logger.warn('Could not lower postCount', { error }));
 
     await revokePoints(after.authorId, 'post_approved', postId);
+    await bumpStats({ approvedPostCount: -1 });
+  } else if (before.status === 'pending') {
+    // pending -> rejected: out of the queue, never counted as approved.
+    await bumpStats({ pendingPostCount: -1 });
   }
 });
 
@@ -128,6 +138,11 @@ export const onPostDeleted = onDocumentDeleted('posts/{postId}', async (event) =
   const { postId } = event.params;
 
   await bumpEntryCounts(post, -1);
+  await bumpStats({
+    postCount: -1,
+    approvedPostCount: post.status === 'approved' ? -1 : 0,
+    pendingPostCount: post.status === 'pending' ? -1 : 0,
+  });
 
   if (post.status === 'approved' && post.authorId) {
     await db()
@@ -383,6 +398,37 @@ export const onFollowDeleted = onDocumentDeleted('follows/{edgeId}', async (even
       .update({ followerCount: FieldValue.increment(-1), updatedAt: new Date() })
       .catch(() => undefined),
   ]);
+});
+
+// ---------------------------------------------------------------------------
+// Dashboard stats
+// ---------------------------------------------------------------------------
+
+/**
+ * Move one or more running totals on `stats/global`.
+ *
+ * Counting on demand would cost a document read per user and per post every
+ * time the dashboard opens. An incremented total costs one read, and these
+ * numbers are only ever approximate-by-a-moment anyway.
+ *
+ * `set` with merge rather than `update`, because the document doesn't exist
+ * until the first thing is counted, and a brand-new project shouldn't need a
+ * seeding step.
+ */
+async function bumpStats(deltas: Record<string, number>): Promise<void> {
+  const payload: Record<string, FieldValue | Date | number> = { updatedAt: new Date() };
+  for (const [field, delta] of Object.entries(deltas)) {
+    if (delta !== 0) payload[field] = FieldValue.increment(delta);
+  }
+
+  await db()
+    .doc('stats/global')
+    .set({ schemaVersion: 1, ...payload }, { merge: true })
+    .catch((error) => logger.warn('Could not update stats', { error }));
+}
+
+export const onUserCreatedStats = onDocumentCreated('users/{uid}', async () => {
+  await bumpStats({ userCount: 1 });
 });
 
 // ---------------------------------------------------------------------------
@@ -747,6 +793,7 @@ export const onMessageCreated = onDocumentCreated(
  * queue; a notification is read over shoulders.
  */
 export const onReportCreated = onDocumentCreated('reports/{reportId}', async (event) => {
+  await bumpStats({ openReportCount: 1 });
   const report = event.data?.data();
   if (!report) return;
 
@@ -778,6 +825,19 @@ export const onReportCreated = onDocumentCreated('reports/{reportId}', async (ev
       }),
     ),
   );
+});
+
+/** A report was resolved or reopened — keep the dashboard's open count honest. */
+export const onReportResolved = onDocumentUpdated('reports/{reportId}', async (event) => {
+  const before = event.data?.before.data();
+  const after = event.data?.after.data();
+  if (!before || !after || before.status === after.status) return;
+
+  const wasOpen = before.status === 'open';
+  const isOpen = after.status === 'open';
+  if (wasOpen === isOpen) return;
+
+  await bumpStats({ openReportCount: isOpen ? 1 : -1 });
 });
 
 // ---------------------------------------------------------------------------
@@ -926,6 +986,7 @@ async function updateEach(
  * posts and photos, push tokens, and notification history.
  */
 export const onUserDeleted = onDocumentDeleted('users/{uid}', async (event) => {
+  await bumpStats({ userCount: -1 });
   const { uid } = event.params;
 
   const posts = await db().collection('posts').where('authorId', '==', uid).get();

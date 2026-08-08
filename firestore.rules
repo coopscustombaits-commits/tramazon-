@@ -152,10 +152,19 @@ service cloud.firestore {
              && request.resource.data.usernameLower == request.resource.data.username.lower()
            ));
 
+      // Moderation. An admin may change exactly two fields on somebody else's
+      // profile and nothing else — not their bio, not their username, and not
+      // their points. A moderation tool that can also rewrite a profile has a
+      // bigger blast radius than the job needs.
+      allow update: if isAdmin()
+        && changedKeys().hasOnly(['accountStatus', 'suspendedUntil', 'updatedAt'])
+        && request.resource.data.accountStatus in ['active', 'suspended', 'banned'];
+
       // "Delete account" removes the profile as the user, together with their
       // username reservation, so the name is released immediately. Cascading
       // cleanup of posts and photos is handled by a Cloud Function.
-      allow delete: if isSelf(uid);
+      // An admin can also remove an account outright.
+      allow delete: if isSelf(uid) || isAdmin();
 
       // users/{uid}/private/profile — email, notification prefs.
       match /private/{document=**} {
@@ -280,6 +289,31 @@ service cloud.firestore {
 
       // Counters are derived from these edges; editing one would desync them.
       allow update: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // stats/{id} — dashboard totals, maintained by Cloud Functions.
+    //
+    // Admin-readable only: these are business numbers, not something anglers
+    // need, and a user count is the kind of thing a competitor screenshots.
+    // ---------------------------------------------------------------------
+    match /stats/{document} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // config/{document} — remote config.
+    //
+    // Readable by every signed-in user because the app acts on it; writable
+    // only by an admin. Nothing here grants permission — these are switches
+    // for behaviour, and the rules remain the only thing deciding access. A
+    // flag that granted access would be a flag anyone could read and forge
+    // around, since the client is the side reading it.
+    // ---------------------------------------------------------------------
+    match /config/{document} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     // ---------------------------------------------------------------------

@@ -18,6 +18,7 @@ import { Radius, Spacing, Typography } from '@/constants/theme';
 import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
+import { useRemoteConfig } from '@/lib/db/config-context';
 import {
   MESSAGE_MAX,
   deleteMessage,
@@ -37,6 +38,7 @@ export default function ThreadScreen() {
   const Colors = useThemeColors();
   const styles = useStyles();
   const { user } = useAuth();
+  const config = useRemoteConfig();
   const listRef = useRef<FlatList<DirectMessage>>(null);
 
   const [conversation, setConversation] = useState<Conversation | null | undefined>(
@@ -195,17 +197,21 @@ export default function ThreadScreen() {
           style={styles.input}
           value={draft}
           onChangeText={setDraft}
-          placeholder="Message"
+          placeholder={config.messagingEnabled ? 'Message' : 'Messaging is paused'}
           placeholderTextColor={Colors.textFaint}
+          editable={config.messagingEnabled}
           multiline
           maxLength={MESSAGE_MAX}
         />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Send"
-          disabled={!draft.trim() || sending}
+          disabled={!draft.trim() || sending || !config.messagingEnabled}
           onPress={() => void send()}
-          style={[styles.send, (!draft.trim() || sending) && styles.sendDisabled]}>
+          style={[
+            styles.send,
+            (!draft.trim() || sending || !config.messagingEnabled) && styles.sendDisabled,
+          ]}>
           <Ionicons name="arrow-up" size={20} color={Colors.textInverse} />
         </Pressable>
       </View>

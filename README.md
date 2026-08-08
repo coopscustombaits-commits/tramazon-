@@ -35,7 +35,7 @@ src/
     (auth)/               welcome, log in, sign up, password reset
     (tabs)/               feed, shop, post, profile
     settings/             settings, edit profile, about, contact
-    admin/                admin-only review queue
+    admin/                the dashboard: queues, anglers, publishing, controls
     post/[id].tsx         a catch, its likes and comments
     wishlist.tsx          saved products
     orders.tsx            order history and status
@@ -78,8 +78,8 @@ docs/ROADMAP.md           how Phases 2-4 fit the existing schema, and what
 
 ## Build status
 
-**Phases 1, 2, and 3 are complete. Phase 4 has its enforcement and several of
-its admin screens, but not the full dashboard.**
+**Phases 1, 2, and 3 are complete. Phase 4 has its dashboard; three items
+remain — appeals, AI moderation, and segmented push.**
 
 Where a later phase isn't built it has at least been *designed for* —
 [`docs/ROADMAP.md`](docs/ROADMAP.md) audits every remaining item against the
@@ -91,7 +91,7 @@ restructuring. That is not the same as being built.
 | **1 — Core app** | Everything |
 | **2 — Community** | Everything |
 | **3 — Engagement** | Everything |
-| **4 — Admin dashboard & moderation** | Enforcement only, no dashboard |
+| **4 — Admin dashboard & moderation** | Dashboard done; 3 items left |
 
 ---
 
@@ -121,7 +121,7 @@ restructuring. That is not the same as being built.
 | Dark mode toggle | Done |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done, covers all four phases |
-| Tests | 82 unit + 104 security rules, all in CI |
+| Tests | 82 unit + 110 security rules, all in CI |
 
 ### Phase 2 — Community · complete
 
@@ -151,25 +151,28 @@ restructuring. That is not the same as being built.
 | Fishing tips and articles | **Done** — shares the articles collection |
 | Featured products on home | **Done** — a Shopify collection named `featured` |
 
-### Phase 4 — Admin dashboard & moderation · enforcement only
+### Phase 4 — Admin dashboard & moderation · 3 items left
 
-There is **no dashboard**. What exists is the server-side enforcement it will
-sit on top of, which is the part that has to be right first.
+The dashboard is at **Settings → Admin → Dashboard**, and it sits on top of the
+server-side enforcement that was built first. Every screen there is a
+convenience: the security rules are what actually stop anyone, and they run on
+Google's servers where a modified app can't reach them.
 
 | Feature | State |
 | --- | --- |
 | Review pending posts | **Done** — the Phase 1 queue, not a full dashboard |
 | Send push to all users | **Done** — the announcement composer |
 | Delete posts and comments | **Done** — from the post screen |
-| Suspend / ban a user | **Enforced** — no UI; works from the Firebase console |
+| Suspend / ban a user | **Done** — from the dashboard, with timed suspensions |
 | Feature a post on home | **Enforced** — no UI; works from the Firebase console |
-| User counts, active users, analytics | Not built — Analytics needs enabling |
-| Manage users (edit, delete) | Not built |
+| User counts and totals | **Done** — dashboard tiles from `stats/global` |
+| Deeper analytics | Not built — Firebase Analytics needs enabling |
+| Manage users | **Done** — search, suspend, ban, reinstate, adjust points |
 | Segmented push | Not built |
 | Manage tournaments and challenges | **Done** — admin editor |
 | Manage badges | **Done** — admin editor, no deploy needed |
 | Add / edit articles | **Done** — admin editor with drafts |
-| Remote config | Not built |
+| Remote config | **Done** — maintenance mode, pause posting/DMs, feed banner |
 | **User reporting** | **Done** — report posts, comments, and anglers |
 | **User blocking** | **Done** — block list, feed and comments filtered |
 | Reports queue | **Done** — admin-only, with push alerts |
