@@ -473,18 +473,47 @@ Order history works without this — an order shows as "Order placed" from the
 moment checkout opens. To have it update to *paid*, *shipped*, and carry a
 tracking link, Shopify needs to tell us when that happens.
 
-1. Shopify admin → the app you made in section 8 → **Configuration** →
-   **Admin API integration** → enable `read_orders`.
-2. **Webhooks**: point `orders/create`, `orders/paid`, `orders/fulfilled`, and
-   `orders/cancelled` at the Cloud Function URL that `firebase deploy` prints
-   for `shopifyOrderWebhook`.
-3. Copy the webhook signing secret into your Firebase functions config so the
-   function can verify that a request really came from Shopify.
+The handler is built (`functions/src/shopify.ts`). Three steps to connect it:
+
+1. **Store the signing secret in Firebase**, so the function can prove a
+   request really came from Shopify:
+
+   ```bash
+   npx firebase functions:secrets:set SHOPIFY_WEBHOOK_SECRET
+   ```
+
+   Paste the secret when prompted. It goes into Google Secret Manager — not
+   into `.env`, not into the repo, and never into the app.
+
+   You'll get the secret itself in step 3; run this again afterwards if you
+   need to set it a second time.
+
+2. **Deploy**, and note the URL it prints for `shopifyOrderWebhook`:
+
+   ```bash
+   npm --prefix functions run deploy
+   ```
+
+3. **Point Shopify at it.** Shopify admin → **Settings** → **Notifications** →
+   **Webhooks** → *Create webhook*, once for each of `orders/create`,
+   `orders/paid`, `orders/fulfilled`, and `orders/cancelled`. Format JSON, URL
+   the one from step 2. Shopify shows the signing secret on that page — that's
+   the value for step 1.
+
+**How to tell it's working.** Place a test order. Within a few seconds the
+order screen should move off "Order placed", and marking it fulfilled in
+Shopify should push "Your order shipped" to the phone that bought it.
+
+**If nothing happens**, check the function logs
+(`npx firebase functions:log --only shopifyOrderWebhook`). A `401 Bad
+signature` means the secret in step 1 doesn't match the one Shopify shows.
+"No matching order" is normal and not an error — it means somebody ordered
+from the website rather than the app, and there's no app order to update.
 
 > This is the one place an **Admin API** credential is involved, and it lives
-> only in Firebase — never in the app. The webhook handler itself is not built
-> yet; the app and database are ready for it, and the order screen degrades
-> honestly until it exists.
+> only in Secret Manager — never in the app, never in `.env`, never in the
+> repo. Order history works without any of this; it just stays on "Order
+> placed" until the webhook is connected.
 
 ---
 

@@ -111,7 +111,7 @@ restructuring. That is not the same as being built.
 | Shopify: products, categories, search, detail pages | Done — needs credentials, §8 |
 | Shopify: cart and checkout | Done |
 | Wishlist | Done |
-| Order history | Screen done — **live status needs a webhook that isn't written yet**, §9 |
+| Order history and live status | Done — connect the webhook, `docs/SETUP.md` §9 |
 | Home feed: photo/video posts, caption, species tag | Done |
 | Pending → approve/reject workflow | Done |
 | Admin review queue | Done |

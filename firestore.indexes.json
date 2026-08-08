@@ -339,6 +339,17 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "comment": "Order webhook: find an order by its Shopify cart id, across all users.",
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "cartId",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

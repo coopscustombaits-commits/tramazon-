@@ -3,7 +3,9 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 
+import { AppealSheet } from '@/components/appeal-sheet';
 import { ThemePicker } from '@/components/theme-picker';
+import { Button } from '@/components/ui/button';
 import { Card, Divider, ListRow, SectionHeader } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
 import { Radius, Spacing, Typography } from '@/constants/theme';
@@ -16,6 +18,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { profile, user, isAdmin, signOut, deleteAccount } = useAuth();
   const [busy, setBusy] = useState(false);
+  const [appealing, setAppealing] = useState(false);
 
   function confirmSignOut() {
     Alert.alert('Log out', 'You can log back in any time.', [
@@ -64,10 +67,43 @@ export default function SettingsScreen() {
   }
 
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+  const restricted = profile != null && profile.accountStatus !== 'active';
 
   return (
     <Screen scroll padded={false} contentContainerStyle={styles.content}>
       <View style={styles.section}>
+        {/* A restricted account needs to be told why things stop working, and
+            needs a way to say it was wrong. Both belong at the very top —
+            somebody who can't post is here looking for exactly this. */}
+        {restricted ? (
+          <Card style={styles.restricted}>
+            <Text style={styles.restrictedTitle}>
+              {profile.accountStatus === 'suspended'
+                ? 'Your account is suspended'
+                : 'Your account is banned'}
+            </Text>
+            <Text style={styles.restrictedBody}>
+              You can still read and sign in, but you can&apos;t post, comment, like,
+              follow, message, or review. If you think that&apos;s wrong, tell Coop.
+            </Text>
+            <Button
+              label="Appeal this"
+              variant="outline"
+              onPress={() => setAppealing(true)}
+            />
+          </Card>
+        ) : null}
+
+        {appealing && profile ? (
+          <AppealSheet
+            visible
+            onClose={() => setAppealing(false)}
+            kind="account"
+            targetId={profile.uid}
+            what="your account"
+          />
+        ) : null}
+
         <SectionHeader title="Account" />
         <Card style={styles.card}>
           <ListRow
@@ -234,6 +270,14 @@ export default function SettingsScreen() {
 }
 
 const useStyles = makeStyles((Colors) => ({
+  restricted: {
+    gap: Spacing.sm,
+    borderColor: Colors.danger,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+  },
+  restrictedTitle: { ...Typography.bodyStrong, color: Colors.danger },
+  restrictedBody: { ...Typography.caption, color: Colors.textMuted },
   content: {
     paddingBottom: Spacing.xxl,
   },

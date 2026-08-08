@@ -11,6 +11,11 @@ import {
 import { adminUids, notifyUser, sendPush, tokensForUser, wantsNotification } from './push';
 import { DEFAULT_BLOCKED_WORDS, decide, labelReason, screenText } from './moderation';
 
+// The Shopify order webhook lives in its own file — it's an HTTP endpoint
+// with a signature check rather than a Firestore trigger, and mixing the two
+// makes both harder to read.
+export { shopifyOrderWebhook } from './shopify';
+
 /**
  * Cloud Functions for Coop's Custom Baits.
  *
