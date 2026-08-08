@@ -59,6 +59,34 @@ service cloud.firestore {
      * exposing it. That's what makes "you can't DM someone who blocked you"
      * possible without leaking that a block happened: the send just fails.
      */
+    /**
+     * Is this competition accepting entries right now?
+     *
+     * Checked here and not only in the app, because "the contest closed an
+     * hour ago" is exactly the kind of thing a modified client would ignore.
+     * `request.time` is the server's clock, so a device with the wrong date
+     * doesn't get to enter late either.
+     */
+    function entryOpen(competition) {
+      return competition.published == true
+        && (competition.startsAt == null || request.time >= competition.startsAt)
+        && (competition.endsAt == null || request.time <= competition.endsAt);
+    }
+
+    /**
+     * A post may carry a challenge or tournament id only if that competition
+     * exists and is open. Null — the normal case — costs no read.
+     */
+    function entryAllowed(root, id) {
+      return id == null
+        || (exists(competitionPath(root, id))
+            && entryOpen(get(competitionPath(root, id)).data));
+    }
+
+    function competitionPath(root, id) {
+      return path('/databases/' + database + '/documents/' + root + '/' + id);
+    }
+
     function hasBlockedMe(uid) {
       return exists(
         /databases/$(database)/documents/users/$(uid)/blocked/$(request.auth.uid)
@@ -228,6 +256,50 @@ service cloud.firestore {
 
       // Counters are derived from these edges; editing one would desync them.
       allow update: if false;
+    }
+
+    // ---------------------------------------------------------------------
+    // challenges/{id} and tournaments/{id}
+    //
+    // Same shape, same rules, written once and applied to both roots. Entries
+    // are posts carrying the id — see the `posts` rules for that side.
+    // ---------------------------------------------------------------------
+
+    function competitionCreate() {
+      return isAdmin()
+        && request.resource.data.createdBy == request.auth.uid
+        && isValidString(request.resource.data.title, 100)
+        && request.resource.data.title.size() > 0
+        && isValidString(request.resource.data.description, 2000)
+        && request.resource.data.scoring in ['most_likes', 'admin_pick']
+        // Derived from the entries; a competition that could open claiming 400
+        // entries would make the number meaningless.
+        && request.resource.data.entryCount == 0
+        && request.resource.data.winnerPostId == null
+        && request.resource.data.winnerUid == null;
+    }
+
+    function competitionUpdate() {
+      return isAdmin()
+        && isValidString(request.resource.data.title, 100)
+        && isValidString(request.resource.data.description, 2000)
+        // `entryCount` is server-written. An admin editing the prize text must
+        // not be able to move it, deliberately or by sending a stale document.
+        && request.resource.data.entryCount == resource.data.entryCount;
+    }
+
+    match /challenges/{competitionId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.published == true);
+      allow create: if competitionCreate();
+      allow update: if competitionUpdate();
+      allow delete: if isAdmin();
+    }
+
+    match /tournaments/{competitionId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.published == true);
+      allow create: if competitionCreate();
+      allow update: if competitionUpdate();
+      allow delete: if isAdmin();
     }
 
     // ---------------------------------------------------------------------
@@ -517,6 +589,10 @@ service cloud.firestore {
         // Search keywords are client-computed, so they need a ceiling — a huge
         // array is a cheap way to bloat the document and the index.
         && validKeywords()
+        // Entering a competition is decided at post time, and only into one
+        // that's actually running.
+        && entryAllowed('challenges', request.resource.data.challengeId)
+        && entryAllowed('tournaments', request.resource.data.tournamentId)
         // Only an admin decides what gets featured.
         && request.resource.data.featured == false;
 

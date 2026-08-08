@@ -38,6 +38,13 @@ export const paths = {
   articles: 'articles',
   article: (id: string) => `articles/${id}`,
 
+  // Challenges and tournaments hold the same shape in two collections, so the
+  // builders take the kind and pick the root.
+  competitionRoot: (kind: 'challenge' | 'tournament') =>
+    kind === 'challenge' ? 'challenges' : 'tournaments',
+  competition: (kind: 'challenge' | 'tournament', id: string) =>
+    `${paths.competitionRoot(kind)}/${id}`,
+
   // Reviews. Both kinds share a shape, so the path builders take the same
   // arguments and `lib/db/reviews.ts` picks the root.
   reviewRoot: (kind: 'product' | 'bait') =>

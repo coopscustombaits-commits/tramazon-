@@ -43,6 +43,7 @@ src/
     messages/             direct message inbox and threads
     baits/                community bait reviews
     learn/                tips and YouTube videos
+    compete/              challenges, tournaments, leaderboards
     search.tsx            search anglers and catches
     species/              per-species hubs
     notifications.tsx     in-app activity history
@@ -75,7 +76,7 @@ docs/ROADMAP.md           how Phases 2-4 fit the existing schema, and what
 
 ## Build status
 
-**Phases 1 and 2 are complete. Phase 3 is barely started, and Phase 4 has its
+**Phases 1 and 2 are complete. Phase 3 is over half done, and Phase 4 has its
 enforcement but no dashboard.**
 
 Where a later phase isn't built it has at least been *designed for* —
@@ -87,7 +88,7 @@ restructuring. That is not the same as being built.
 | --- | --- |
 | **1 — Core app** | Everything |
 | **2 — Community** | Everything |
-| **3 — Engagement** | 2 of 9 items |
+| **3 — Engagement** | 5 of 9 items |
 | **4 — Admin dashboard & moderation** | Enforcement only, no dashboard |
 
 ---
@@ -118,7 +119,7 @@ restructuring. That is not the same as being built.
 | Dark mode toggle | Done |
 | Log out / delete account | Done |
 | Firestore schema + security rules | Done, covers all four phases |
-| Tests | 56 unit + 78 security rules, all in CI |
+| Tests | 64 unit + 88 security rules, all in CI |
 
 ### Phase 2 — Community · complete
 
@@ -134,14 +135,14 @@ restructuring. That is not the same as being built.
 | Bait reviews | **Done** — community reviews of any bait |
 | YouTube integration | **Done** — inline player, id stored not a URL |
 
-### Phase 3 — Engagement · 2 of 9
+### Phase 3 — Engagement · 5 of 9
 
 | Feature | State |
 | --- | --- |
 | New product / limited-edition notifications | **Done** (the announcement system) |
-| Fishing challenges | Not built — `posts.challengeId` is ready |
-| Online tournaments | Not built — `posts.tournamentId` is ready |
-| Leaderboards | Not built — the counters they rank on exist |
+| Fishing challenges | **Done** — entered by posting a catch |
+| Online tournaments | **Done** — same mechanism, dated |
+| Leaderboards | **Done** — a query over posts, not a stored ranking |
 | Badges and achievements | Not built |
 | Points / rewards | Not built — `users.points` is ready |
 | Event calendar | Not built |
@@ -163,7 +164,8 @@ sit on top of, which is the part that has to be right first.
 | User counts, active users, analytics | Not built — Analytics needs enabling |
 | Manage users (edit, delete) | Not built |
 | Segmented push | Not built |
-| Manage tournaments, challenges, badges | Not built |
+| Manage tournaments and challenges | **Done** — admin editor |
+| Manage badges | Not built |
 | Add / edit articles | **Done** — admin editor with drafts |
 | Remote config | Not built |
 | **User reporting** | **Done** — report posts, comments, and anglers |

@@ -113,6 +113,13 @@ export default function SettingsScreen() {
           />
           <Divider />
           <ListRow
+            label="Challenges & tournaments"
+            description="What's running, and the leaderboards"
+            icon="trophy-outline"
+            onPress={() => router.push('/compete')}
+          />
+          <Divider />
+          <ListRow
             label="Species hubs"
             description="Catches by fish"
             icon="fish-outline"
@@ -153,6 +160,13 @@ export default function SettingsScreen() {
                 description="Content flagged by anglers"
                 icon="flag-outline"
                 onPress={() => router.push('/admin/reports')}
+              />
+              <Divider />
+              <ListRow
+                label="Challenges & tournaments"
+                description="Start one, or declare a winner"
+                icon="trophy-outline"
+                onPress={() => router.push('/admin/competitions')}
               />
               <Divider />
               <ListRow

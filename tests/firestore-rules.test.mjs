@@ -1334,3 +1334,194 @@ test('only an admin can edit or delete an article', async () => {
   await assertFails(deleteDoc(doc(asAngler(), 'articles', 'winter')));
   await assertSucceeds(deleteDoc(doc(asOwner(), 'articles', 'winter')));
 });
+
+// ---------------------------------------------------------------------------
+// Challenges and tournaments
+// ---------------------------------------------------------------------------
+
+const HOUR = 3_600_000;
+
+function competition(kind, createdBy, overrides = {}) {
+  return {
+    schemaVersion: 1,
+    kind,
+    title: 'Topwater week',
+    description: 'Post a catch taken on a topwater bait.',
+    prize: 'A pack of Deep Divers',
+    coverImageUrl: null,
+    coverStoragePath: null,
+    speciesSlug: null,
+    scoring: 'most_likes',
+    startsAt: new Date(Date.now() - HOUR),
+    endsAt: new Date(Date.now() + 24 * HOUR),
+    entryCount: 0,
+    winnerPostId: null,
+    winnerUid: null,
+    published: true,
+    createdBy,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+test('only an admin can start a challenge or tournament', async () => {
+  await assertFails(
+    setDoc(doc(asAngler(), 'challenges', 'sneaky'), competition('challenge', ANGLER)),
+  );
+  await assertSucceeds(
+    setDoc(doc(asOwner(), 'challenges', 'topwater'), competition('challenge', OWNER)),
+  );
+  await assertSucceeds(
+    setDoc(doc(asOwner(), 'tournaments', 'classic'), competition('tournament', OWNER)),
+  );
+});
+
+test('a competition cannot open pre-loaded with entries or a winner', async () => {
+  await assertFails(
+    setDoc(doc(asOwner(), 'challenges', 'inflated'), competition('challenge', OWNER, {
+      entryCount: 400,
+    })),
+  );
+  await assertFails(
+    setDoc(doc(asOwner(), 'challenges', 'predecided'), competition('challenge', OWNER, {
+      winnerPostId: 'approved1',
+      winnerUid: ANGLER,
+    })),
+  );
+});
+
+test('an admin editing a competition cannot move its entry count', async () => {
+  // `entryCount` is derived from the posts. An admin fixing a typo in the
+  // prize must not be able to drag it along, deliberately or by sending back
+  // a stale document.
+  await assertFails(
+    updateDoc(doc(asOwner(), 'challenges', 'topwater'), { entryCount: 99 }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'challenges', 'topwater'), {
+      title: 'Topwater fortnight',
+      description: 'Post a catch taken on a topwater bait.',
+      entryCount: 0,
+      updatedAt: new Date(),
+    }),
+  );
+});
+
+test('a draft competition is invisible to anglers', async () => {
+  await assertSucceeds(
+    setDoc(doc(asOwner(), 'challenges', 'unlisted'), competition('challenge', OWNER, {
+      published: false,
+    })),
+  );
+  await assertFails(getDoc(doc(asAngler(), 'challenges', 'unlisted')));
+  await assertSucceeds(getDoc(doc(asAngler(), 'challenges', 'topwater')));
+  await assertFails(getDoc(doc(asGuest(), 'challenges', 'topwater')));
+});
+
+test('a catch can be entered in a competition that is running', async () => {
+  await assertSucceeds(
+    setDoc(
+      doc(asAngler(), 'posts', 'entry-ok'),
+      post(ANGLER, { challengeId: 'topwater' }),
+    ),
+  );
+  await assertSucceeds(
+    setDoc(
+      doc(asAngler(), 'posts', 'entry-tournament'),
+      post(ANGLER, { tournamentId: 'classic' }),
+    ),
+  );
+});
+
+test('you cannot enter a competition that has not started or has ended', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'challenges', 'not-yet'), competition('challenge', OWNER, {
+      startsAt: new Date(Date.now() + 24 * HOUR),
+      endsAt: new Date(Date.now() + 48 * HOUR),
+    }));
+    await setDoc(doc(db, 'challenges', 'over'), competition('challenge', OWNER, {
+      startsAt: new Date(Date.now() - 48 * HOUR),
+      endsAt: new Date(Date.now() - HOUR),
+    }));
+  });
+
+  await assertFails(
+    setDoc(doc(asAngler(), 'posts', 'too-early'), post(ANGLER, { challengeId: 'not-yet' })),
+  );
+  // "The contest closed an hour ago" is exactly what a modified client would
+  // ignore, so the deadline is enforced on the server's clock.
+  await assertFails(
+    setDoc(doc(asAngler(), 'posts', 'too-late'), post(ANGLER, { challengeId: 'over' })),
+  );
+});
+
+test('you cannot enter a draft competition, or one that does not exist', async () => {
+  await assertFails(
+    setDoc(doc(asAngler(), 'posts', 'entry-draft'), post(ANGLER, { challengeId: 'unlisted' })),
+  );
+  await assertFails(
+    setDoc(doc(asAngler(), 'posts', 'entry-ghost'), post(ANGLER, { challengeId: 'made-up' })),
+  );
+  // A tournament id pointing at a challenge is the same mistake.
+  await assertFails(
+    setDoc(doc(asAngler(), 'posts', 'entry-wrong-root'), post(ANGLER, {
+      tournamentId: 'topwater',
+    })),
+  );
+});
+
+test('the leaderboard query is allowed, and only for approved entries', async () => {
+  await assertSucceeds(getDocs(query(
+    collection(asAngler(), 'posts'),
+    where('challengeId', '==', 'topwater'),
+    where('status', '==', 'approved'),
+    orderBy('likeCount', 'desc'),
+    limit(25),
+  )));
+  // Without the status filter it would surface other people's pending posts.
+  await assertFails(getDocs(query(
+    collection(asAngler(), 'posts'),
+    where('challengeId', '==', 'topwater'),
+    orderBy('likeCount', 'desc'),
+    limit(25),
+  )));
+});
+
+test('the published competition list is allowed; the full list is admin-only', async () => {
+  await assertSucceeds(getDocs(query(
+    collection(asAngler(), 'challenges'),
+    where('published', '==', true),
+    orderBy('endsAt', 'asc'),
+    limit(50),
+  )));
+  await assertFails(getDocs(query(
+    collection(asAngler(), 'challenges'),
+    orderBy('createdAt', 'desc'),
+    limit(100),
+  )));
+  await assertSucceeds(getDocs(query(
+    collection(asOwner(), 'challenges'),
+    orderBy('createdAt', 'desc'),
+    limit(100),
+  )));
+});
+
+test('only an admin can declare a winner or delete a competition', async () => {
+  await assertFails(
+    updateDoc(doc(asAngler(), 'challenges', 'topwater'), { winnerUid: ANGLER }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(asOwner(), 'challenges', 'topwater'), {
+      title: 'Topwater fortnight',
+      description: 'Post a catch taken on a topwater bait.',
+      entryCount: 0,
+      winnerPostId: 'entry-ok',
+      winnerUid: ANGLER,
+      updatedAt: new Date(),
+    }),
+  );
+  await assertFails(deleteDoc(doc(asAngler(), 'challenges', 'topwater')));
+  await assertSucceeds(deleteDoc(doc(asOwner(), 'challenges', 'over')));
+});

@@ -73,6 +73,10 @@ export type CreatePostInput = {
   thumbnailUri?: string | null;
   caption: string;
   species?: string | null;
+  /** Entering a challenge or tournament. Decided at post time — the security
+   *  rules only accept an id for a competition that's open right now. */
+  challengeId?: string | null;
+  tournamentId?: string | null;
 };
 
 /**
@@ -135,8 +139,8 @@ export async function createPost(input: CreatePostInput): Promise<string> {
       keywords: extractKeywords(caption, input.species, profile.username),
       species: input.species?.trim() || null,
       speciesSlug: speciesSlug(input.species),
-      tournamentId: null,
-      challengeId: null,
+      tournamentId: input.tournamentId ?? null,
+      challengeId: input.challengeId ?? null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

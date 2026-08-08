@@ -369,6 +369,72 @@ export type Follow = {
 };
 
 // ---------------------------------------------------------------------------
+// Competitions — challenges and tournaments
+//
+// Two collections (`challenges`, `tournaments`) holding the same shape, which
+// is why `Post` has carried both `challengeId` and `tournamentId` since day
+// one. They're separate because they mean different things to an angler — a
+// challenge is an open-ended prompt, a tournament has a start, an end, and a
+// winner — but they're entered the same way and scored the same way, so one
+// type and one set of screens serve both.
+//
+// An entry is a post with the id set. That's the whole mechanism: an entry is
+// already moderated, already has likes and comments, and already appears in
+// the feed. There is no second content type to build or police.
+// ---------------------------------------------------------------------------
+
+export type CompetitionKind = 'challenge' | 'tournament';
+
+/**
+ * How a leaderboard is ordered.
+ *
+ *   most_likes  — the community decides. One query, ordered by `likeCount`.
+ *   admin_pick  — Coop picks. Ordered by `featured`, then likes.
+ *
+ * Both are derived from fields posts already carry, so a leaderboard needs no
+ * aggregate documents and can't drift out of sync with the entries.
+ */
+export type CompetitionScoring = 'most_likes' | 'admin_pick';
+
+/** `challenges/{id}` or `tournaments/{id}` */
+export type Competition = Timestamps & {
+  schemaVersion: number;
+  id: string;
+  kind: CompetitionKind;
+  title: string;
+  /** What to do to enter, in Coop's words. */
+  description: string;
+  /** What you win. Free text — "a pack of Deep Divers", "bragging rights". */
+  prize: string;
+  coverImageUrl: string | null;
+  coverStoragePath: string | null;
+  /**
+   * Optional species restriction, as a slug. Null means anything counts.
+   * Matches `Post.speciesSlug` so the check is an equality test.
+   */
+  speciesSlug: string | null;
+  scoring: CompetitionScoring;
+  startsAt: Timestamp | null;
+  endsAt: Timestamp | null;
+  /** Server-written, from the posts that reference it. */
+  entryCount: number;
+  /** Set by an admin when it's over. Null while it's still running. */
+  winnerPostId: string | null;
+  winnerUid: string | null;
+  published: boolean;
+  createdBy: string;
+};
+
+/**
+ * Where a competition is in its life, worked out from the dates.
+ *
+ * Derived rather than stored: a stored status would need something to move it
+ * from 'open' to 'closed' at the right minute, and anything that can fail to
+ * run can leave a competition claiming to be open a week after it ended.
+ */
+export type CompetitionPhase = 'upcoming' | 'open' | 'ended';
+
+// ---------------------------------------------------------------------------
 // Articles — tips, how-tos, and YouTube videos
 //
 // One collection for both because they're the same thing to a reader: a piece

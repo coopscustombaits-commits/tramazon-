@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
@@ -15,8 +15,10 @@ import { Radius, Spacing, Typography } from '@/constants/theme';
 import { makeStyles, useThemeColors } from '@/constants/theme-context';
 import { useAuth } from '@/lib/auth/auth-context';
 import { authErrorMessage } from '@/lib/auth/errors';
+import { isOpen } from '@/lib/competitions';
+import { fetchCompetitions } from '@/lib/db/competitions';
 import { CAPTION_MAX, createPost } from '@/lib/db/posts';
-import type { MediaKind } from '@/types/models';
+import type { Competition, MediaKind } from '@/types/models';
 
 /** Anything longer gets rejected before the upload starts. */
 const MAX_VIDEO_SECONDS = 60;
@@ -46,6 +48,23 @@ export default function CreatePostScreen() {
   const [caption, setCaption] = useState('');
   const [species, setSpecies] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [openCompetitions, setOpenCompetitions] = useState<Competition[]>([]);
+  const [entering, setEntering] = useState<Competition | null>(null);
+
+  // Offered on the create screen, not on a separate "enter" flow: entering is
+  // a property of the post, and the rules only accept it at post time.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([fetchCompetitions('challenge'), fetchCompetitions('tournament')])
+      .then(([challenges, tournaments]) => {
+        if (cancelled) return;
+        setOpenCompetitions([...challenges, ...tournaments].filter((entry) => isOpen(entry)));
+      })
+      .catch((error: unknown) => console.warn('[create] competitions failed', error));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function pickFrom(source: 'library' | 'camera') {
     const permission =
@@ -133,11 +152,14 @@ export default function CreatePostScreen() {
         thumbnailUri: media.thumbnailUri,
         caption,
         species: species || null,
+        challengeId: entering?.kind === 'challenge' ? entering.id : null,
+        tournamentId: entering?.kind === 'tournament' ? entering.id : null,
       });
 
       setMedia(null);
       setCaption('');
       setSpecies('');
+      setEntering(null);
 
       Alert.alert(
         'Sent for review',
@@ -211,6 +233,44 @@ export default function CreatePostScreen() {
           editable={!submitting}
         />
 
+        {openCompetitions.length > 0 ? (
+          <View style={styles.entrySection}>
+            <Text style={styles.entryLabel}>Enter this catch in…</Text>
+            <View style={styles.entryChips}>
+              {openCompetitions.map((competition) => {
+                const active = entering?.id === competition.id;
+                return (
+                  <Pressable
+                    key={competition.id}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    disabled={submitting}
+                    // Tapping the selected one clears it — otherwise there's no
+                    // way back to "not entering anything".
+                    onPress={() => setEntering(active ? null : competition)}
+                    style={[styles.entryChip, active && styles.entryChipActive]}>
+                    <Ionicons
+                      name={competition.kind === 'tournament' ? 'trophy-outline' : 'flag-outline'}
+                      size={14}
+                      color={active ? Colors.primary : Colors.textMuted}
+                    />
+                    <Text
+                      style={[styles.entryChipLabel, active && styles.entryChipLabelActive]}>
+                      {competition.title}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {entering?.speciesSlug ? (
+              <Text style={styles.entryHint}>
+                This one is {entering.speciesSlug.replace(/-/g, ' ')} only — tag the species
+                above so it counts.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
+
         <View style={styles.notice}>
           <Ionicons name="eye-off-outline" size={18} color={Colors.textMuted} />
           <Text style={styles.noticeText}>
@@ -231,6 +291,24 @@ export default function CreatePostScreen() {
 }
 
 const useStyles = makeStyles((Colors) => ({
+  entrySection: { gap: Spacing.sm },
+  entryLabel: { ...Typography.caption, color: Colors.textMuted, fontWeight: '600' },
+  entryChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  entryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  entryChipActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryTint },
+  entryChipLabel: { ...Typography.caption, color: Colors.text },
+  entryChipLabelActive: { color: Colors.primary, fontWeight: '700' },
+  entryHint: { ...Typography.caption, color: Colors.textMuted },
   body: {
     paddingHorizontal: Spacing.xl,
     gap: Spacing.lg,

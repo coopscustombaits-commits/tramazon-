@@ -96,6 +96,10 @@ function RootNavigator() {
         <Stack.Screen name="admin/reports" options={{ title: 'Reports' }} />
         <Stack.Screen name="admin/articles" options={{ title: 'Tips & Videos' }} />
         <Stack.Screen name="admin/article-edit" options={{ title: 'Write' }} />
+        <Stack.Screen name="admin/competitions" options={{ title: 'Challenges' }} />
+        <Stack.Screen name="admin/competition-edit" options={{ title: 'Challenge' }} />
+        <Stack.Screen name="compete/index" options={{ title: 'Challenges' }} />
+        <Stack.Screen name="compete/[id]" options={{ title: 'Challenge' }} />
         <Stack.Screen name="learn/index" options={{ title: 'Tips & Videos' }} />
         <Stack.Screen name="learn/[id]" options={{ title: 'Tip' }} />
         <Stack.Screen name="post/[id]" options={{ title: 'Catch' }} />

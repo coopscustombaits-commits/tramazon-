@@ -171,9 +171,9 @@ above things written since.
 
 | Feature | What it needs | Status |
 | --- | --- | --- |
-| Challenges | New `challenges` collection + `posts.challengeId` ★ | Ready |
-| Tournaments | New `tournaments` collection + `posts.tournamentId` | Ready |
-| Leaderboards | Aggregate documents | Ready |
+| Challenges | `challenges` collection + `posts.challengeId` ★ | **Built** |
+| Tournaments | `tournaments` collection + `posts.tournamentId` | **Built** |
+| Leaderboards | A query over `posts` — no aggregates needed | **Built** |
 | Badges | New `badges` collection + `users/{uid}/badges` | Ready |
 | Points / rewards | `users.points` ★ | Ready |
 | Event calendar | New `events` collection | Ready |
@@ -182,15 +182,42 @@ above things written since.
 | Product-drop notifications | — | **Done in Phase 1** |
 
 **Challenges and tournaments.** Posts carry both ★`challengeId` and
-`tournamentId`, nullable. An entry is a post with one of them set, which means
-a challenge entry is already moderated, already has likes and comments, and
-already appears in the feed — no second content type to build or moderate.
+`tournamentId`, nullable. An entry is a post with one of them set — so an entry
+is already moderated, already has likes and comments, and already appears in
+the feed. There is no second content type to build or police.
 
-**Leaderboards.** Ranking needs per-user totals that already exist:
-`postCount`, `fishLoggedCount`, and ★`points`. All three are server-written and
-denied to clients by the security rules, which is what makes a leaderboard
-trustworthy. A per-challenge leaderboard is an aggregate document the same
-Cloud Function updates as entries come in.
+Two collections holding one shape, which is why `Post` has carried both fields
+since day one. They're separate because they mean different things to an angler
+(a challenge is an open prompt, a tournament has a start, an end and a winner)
+but they're entered and scored identically, so one type and one set of screens
+serve both.
+
+**Entry is gated in the rules, not just the UI.** A post may only carry a
+competition id if that competition exists, is published, and is open *right
+now* — checked against `request.time`, the server's clock, so a device with the
+wrong date doesn't get to enter late either. "The contest closed an hour ago"
+is exactly the kind of thing a modified client would ignore.
+
+The phase (upcoming / open / ended) is worked out from the dates every time
+rather than stored. A stored status needs something to move it at the right
+minute, and anything that can fail to run can leave a competition claiming to
+be open a week after it closed. `lib/competitions.ts` is pure and unit tested,
+including the inclusive boundaries — a catch posted exactly on the deadline
+counts, and the rules agree.
+
+**Leaderboards.** A competition leaderboard turned out to need no aggregate
+document at all: it's a plain query over `posts` filtered by the competition id
+and ordered by `likeCount`. That means it cannot drift out of sync with the
+entries, which an aggregate always eventually can. `likeCount` is server-written
+and denied to clients, which is what makes the ranking trustworthy.
+
+`entryCount` on the competition itself *is* denormalized, because "how many
+people entered" needs to be readable without fetching the entries. It's counted
+at submission rather than approval, so the number reads as participation and
+doesn't stall behind Coop's review queue.
+
+An all-time angler leaderboard is still to come, and ranks on totals that
+already exist: `postCount`, `fishLoggedCount`, and ★`points`.
 
 **Badges.** `badges/{badgeId}` for definitions, `users/{uid}/badges/{badgeId}`
 for awards. Awarding hangs off the Cloud Functions that already maintain the

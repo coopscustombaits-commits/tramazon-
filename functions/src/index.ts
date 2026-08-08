@@ -44,6 +44,10 @@ export const onPostSubmitted = onDocumentCreated('posts/{postId}', async (event)
   const post = event.data?.data();
   if (!post || post.status !== 'pending') return;
 
+  // Before the admin check below — a competition entry still counts even if
+  // nobody is configured to be notified about it.
+  await bumpEntryCounts(post, 1);
+
   const admins = await adminUids();
   if (admins.length === 0) {
     logger.warn('A post needs review but no admins are configured', {
@@ -116,6 +120,8 @@ export const onPostDeleted = onDocumentDeleted('posts/{postId}', async (event) =
 
   const { postId } = event.params;
 
+  await bumpEntryCounts(post, -1);
+
   if (post.status === 'approved' && post.authorId) {
     await db()
       .doc(`users/${post.authorId}`)
@@ -137,6 +143,36 @@ export const onPostDeleted = onDocumentDeleted('posts/{postId}', async (event) =
     ),
   ]);
 });
+
+/**
+ * Keep `entryCount` on a challenge or tournament in step with the posts that
+ * reference it.
+ *
+ * Counted at submission rather than at approval, so the number reads as "how
+ * many people entered" — which is what an angler deciding whether to bother
+ * wants to know, and doesn't stall behind Coop's review queue.
+ */
+async function bumpEntryCounts(
+  post: FirebaseFirestore.DocumentData,
+  delta: number,
+): Promise<void> {
+  const targets: [string, unknown][] = [
+    ['challenges', post.challengeId],
+    ['tournaments', post.tournamentId],
+  ];
+
+  await Promise.all(
+    targets
+      .filter(([, id]) => typeof id === 'string' && id.length > 0)
+      .map(([root, id]) =>
+        db()
+          .doc(`${root}/${id as string}`)
+          .update({ entryCount: FieldValue.increment(delta), updatedAt: new Date() })
+          // A deleted competition is not a reason to fail the post.
+          .catch((error) => logger.warn('Could not update entryCount', { error, root })),
+      ),
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Likes and comments
